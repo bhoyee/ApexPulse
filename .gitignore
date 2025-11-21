@@ -1,0 +1,13 @@
+.next
+node_modules
+.env
+.env.local
+dist
+coverage
+*.log
+*.tmp
+*.sqlite
+pnpm-lock.yaml
+yarn.lock
+/.vercel
+/.DS_Store

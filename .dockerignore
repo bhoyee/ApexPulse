@@ -1,0 +1,16 @@
+.next
+node_modules
+npm-debug.log
+Dockerfile
+docker-compose.yml
+.git
+.gitignore
+README.md
+pnpm-lock.yaml
+yarn.lock
+coverage
+dist
+tmp
+.DS_Store
+*.local
+*.env

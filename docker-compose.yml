@@ -1,0 +1,60 @@
+services:
+  apexpulse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING: "1"
+      PORT: 3100
+      DATABASE_URL: ${DATABASE_URL:-postgresql://apexpulse:apexpulse@postgres:5432/apexpulse}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3100}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    command: ["/bin/sh", "-c", "npx prisma migrate deploy && npm run start"]
+    ports:
+      - "3100:3100"
+      - "5556:5556"
+
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING: "1"
+      PORT: 3100
+      DATABASE_URL: ${DATABASE_URL:-postgresql://apexpulse:apexpulse@postgres:5432/apexpulse}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3100}
+      CRON_INTERVAL_SECONDS: ${CRON_INTERVAL_SECONDS:-43200}
+    command: ["/bin/sh", "-c", "npx prisma migrate deploy && while true; do npm run cron || true; sleep ${CRON_INTERVAL_SECONDS:-43200}; done"]
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: apexpulse-postgres
+    environment:
+      POSTGRES_USER: apexpulse
+      POSTGRES_PASSWORD: apexpulse
+      POSTGRES_DB: apexpulse
+    ports:
+      - "5442:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: apexpulse-redis
+    ports:
+      - "6380:6379"
+    restart: unless-stopped
+
+volumes:
+  db-data:

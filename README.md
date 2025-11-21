@@ -1,4 +1,4 @@
-# ApexPulse -- Self-Hosted Crypto Portfolio + AI Swing Trader (2025)
+# ApexPulse -- Self-Hosted Crypto Portfolio + AI Swing Trader Signal
 
 ![ApexPulse](public/logo.svg)
 
@@ -122,23 +122,6 @@ flowchart TD
     Auth --> DB
     Cron[Cron container<br/>tsx scripts/cron.ts] --> API
     Cron --> Binance
-    Cron --> AI
-    Cron --> Email
-    Cron --> DB
-```
-
-## Architecture (high level)
-```mermaid
-flowchart TD
-    Browser[Next.js App<br/>TanStack Query + Tremor] --> API[Next.js API Routes]
-    API --> Auth[NextAuth v5 + Prisma]
-    API --> Holdings[Holdings/Signals/Settings APIs]
-    API --> Binance[Binance REST + WebSocket]
-    API --> AI[Grok -> OpenAI]
-    API --> Email[Resend + React Email]
-    Holdings --> DB[(PostgreSQL via Prisma)]
-    Auth --> DB
-    Cron[Cron container<br/>tsx scripts/cron.ts] --> Binance
     Cron --> AI
     Cron --> Email
     Cron --> DB

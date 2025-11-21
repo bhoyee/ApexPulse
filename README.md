@@ -143,3 +143,9 @@ flowchart TD
     Cron --> Email
     Cron --> DB
 ```
+
+## Pricing behavior
+- Bulk prices from `/api/v3/ticker/24hr` for `COINUSDT`.
+- Per-symbol fallback via `/api/v3/ticker/price?symbol=COINUSDT` if missing.
+- Stablecoins (USDT/USDC/BUSD/FDUSD/TUSD) anchored to 1 when held.
+- Threshold set by `BINANCE_MIN_VALUE_USD` (default 0 to keep all balances).

@@ -149,3 +149,7 @@ flowchart TD
 - Per-symbol fallback via `/api/v3/ticker/price?symbol=COINUSDT` if missing.
 - Stablecoins (USDT/USDC/BUSD/FDUSD/TUSD) anchored to 1 when held.
 - Threshold set by `BINANCE_MIN_VALUE_USD` (default 0 to keep all balances).
+
+## Auto-sync cadence
+- Controlled by `CRON_INTERVAL_SECONDS` (default 300s ~5m).
+- Cron syncs Binance for each user before generating signals and emails.

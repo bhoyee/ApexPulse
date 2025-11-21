@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  passwordHash   String?
+  role           String    @default("user")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  holdings       Holding[]
+  transactions   Transaction[]
+  apiSetting     ApiSetting?
+  signals        Signal[]
+  syncJobs       SyncJob[]
+  emails         EmailLog[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  sessionToken  String   @unique
+  userId        String
+  expires       DateTime
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Holding {
+  id           String         @id @default(cuid())
+  userId       String
+  asset        String
+  amount       Decimal        @db.Decimal(18, 8)
+  avgBuyPrice  Decimal        @db.Decimal(18, 8)
+  chain        String?        @default("binance")
+  tags         String[]       @default([])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  holdingId   String?
+  type        TransactionType
+  symbol      String
+  quantity    Decimal  @db.Decimal(18, 8)
+  price       Decimal  @db.Decimal(18, 8)
+  fee         Decimal? @db.Decimal(18, 8)
+  executedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  holding     Holding? @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+}
+
+model ApiSetting {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  binanceApiKey     String?
+  binanceApiSecret  String?
+  grokApiKey        String?
+  openaiApiKey      String?
+  resendApiKey      String?
+  dailyEmailTo      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SyncJob {
+  id           String    @id @default(cuid())
+  userId       String
+  type         SyncJobType
+  status       SyncJobStatus @default(PENDING)
+  lastRun      DateTime?
+  lastMessage  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type], name: "userId_type")
+}
+
+model PricePoint {
+  id        String   @id @default(cuid())
+  symbol    String
+  price     Decimal  @db.Decimal(18, 8)
+  change1h  Decimal? @db.Decimal(8, 4)
+  change24h Decimal? @db.Decimal(8, 4)
+  timestamp DateTime @default(now())
+
+  @@index([symbol, timestamp])
+}
+
+model Signal {
+  id          String      @id @default(cuid())
+  userId      String
+  symbol      String
+  summary     String
+  confidence  Int
+  stopLoss    Float?
+  takeProfit  Float?
+  source      SignalSource @default(GROK)
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  status    String
+  error     String?
+  sentAt    DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  TRANSFER
+}
+
+enum SyncJobType {
+  BINANCE_SPOT
+  DAILY_SIGNALS
+  EMAIL_DIGEST
+}
+
+enum SyncJobStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum SignalSource {
+  GROK
+  OPENAI
+  FALLBACK
+}

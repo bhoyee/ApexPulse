@@ -1,0 +1,159 @@
+import "dotenv/config";
+import { PrismaClient, SyncJobStatus, SyncJobType } from "@prisma/client";
+import { generateSwingSignals } from "../lib/ai";
+import { sendDailyEmail } from "../lib/email";
+import { getMarketTickers, getBinanceBalances } from "../lib/binance";
+
+const prisma = new PrismaClient();
+const MIN_VALUE_USD =
+  Number(process.env.BINANCE_MIN_VALUE_USD ?? "0") || 0;
+const STABLES = new Set(["USDT", "USDC", "BUSD", "FDUSD", "TUSD"]);
+
+async function syncHoldingsForUser(user: any) {
+  const settings = user.apiSetting;
+  if (!settings?.binanceApiKey || !settings?.binanceApiSecret) return;
+
+  const balances = await getBinanceBalances(
+    settings.binanceApiKey,
+    settings.binanceApiSecret
+  );
+  if (!balances.length) return;
+
+  const nonStableSymbols = balances
+    .map((b) => b.asset.toUpperCase())
+    .filter((sym) => !STABLES.has(sym));
+  const tickers = await getMarketTickers(nonStableSymbols);
+  const priceMap = tickers.reduce<Record<string, number>>((acc, t) => {
+    acc[t.symbol.toUpperCase()] = t.price;
+    return acc;
+  }, {});
+
+  const filtered = balances.filter((b) => {
+    const sym = b.asset.toUpperCase();
+    const price = STABLES.has(sym) ? 1 : priceMap[sym] ?? 0;
+    if (!price || Number.isNaN(price)) return false;
+    return price * b.amount >= MIN_VALUE_USD;
+  });
+
+  await Promise.all(
+    filtered.map(async (balance) => {
+      const sym = balance.asset.toUpperCase();
+      const existing = await prisma.holding.findFirst({
+        where: { userId: user.id, asset: sym }
+      });
+      const avgBuyPrice = existing ? existing.avgBuyPrice : 0;
+      if (existing) {
+        await prisma.holding.update({
+          where: { id: existing.id },
+          data: {
+            amount: balance.amount
+          }
+        });
+      } else {
+        await prisma.holding.create({
+          data: {
+            userId: user.id,
+            asset: sym,
+            amount: balance.amount,
+            avgBuyPrice
+          }
+        });
+      }
+    })
+  );
+}
+
+async function runDaily() {
+  const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
+
+  const users = await prisma.user.findMany({
+    include: {
+      apiSetting: true,
+      holdings: true
+    }
+  });
+
+  for (const user of users) {
+    // Refresh holdings from Binance before generating signals
+    await syncHoldingsForUser(user);
+
+    const refreshedHoldings = await prisma.holding.findMany({
+      where: { userId: user.id }
+    });
+
+    const holdingsValue = refreshedHoldings.map((h) => {
+      const price = markets.find((m) => m.symbol === h.asset)?.price ?? 0;
+      return {
+        asset: h.asset,
+        amount: Number(h.amount),
+        value: Number(h.amount) * price
+      };
+    });
+
+    const signals = await generateSwingSignals(markets);
+
+    await prisma.signal.createMany({
+      data: signals.map((s) => ({
+        userId: user.id,
+        symbol: s.symbol,
+        summary: s.thesis,
+        confidence: s.confidence,
+        source: s.source.toUpperCase() as any,
+        stopLoss: s.stopLoss,
+        takeProfit: s.takeProfit
+      }))
+    });
+
+    const recipient = user.apiSetting?.dailyEmailTo || user.email;
+    if (recipient && process.env.RESEND_API_KEY && process.env.RESEND_FROM) {
+      try {
+        await sendDailyEmail({
+          to: recipient,
+          userName: user.name ?? undefined,
+          signals,
+          holdings: holdingsValue
+        });
+        await prisma.emailLog.create({
+          data: {
+            userId: user.id,
+            subject: "ApexPulse | AI Swing Signals",
+            status: "sent"
+          }
+        });
+      } catch (error: any) {
+        await prisma.emailLog.create({
+          data: {
+            userId: user.id,
+            subject: "ApexPulse | AI Swing Signals",
+            status: "failed",
+            error: error?.message ?? "unknown"
+          }
+        });
+      }
+    }
+
+    await prisma.syncJob.upsert({
+      where: { userId_type: { userId: user.id, type: SyncJobType.DAILY_SIGNALS } },
+      update: {
+        status: SyncJobStatus.SUCCESS,
+        lastRun: new Date(),
+        lastMessage: "Daily signals + email processed"
+      },
+      create: {
+        userId: user.id,
+        type: SyncJobType.DAILY_SIGNALS,
+        status: SyncJobStatus.SUCCESS,
+        lastRun: new Date(),
+        lastMessage: "Daily signals + email processed"
+      }
+    });
+  }
+}
+
+runDaily()
+  .catch((error) => {
+    console.error("Cron failure", error);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

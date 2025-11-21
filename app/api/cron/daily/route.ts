@@ -1,0 +1,53 @@
+import { NextResponse } from "next/server";
+import { auth } from "../../../../lib/auth";
+import { prisma } from "../../../../lib/prisma";
+import { generateSwingSignals } from "../../../../lib/ai";
+import { getMarketTickers } from "../../../../lib/binance";
+import { sendDailyEmail } from "../../../../lib/email";
+
+export async function POST() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { apiSetting: true, holdings: true }
+  });
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
+  const signals = await generateSwingSignals(markets);
+
+  await prisma.signal.createMany({
+    data: signals.map((s) => ({
+      userId: user.id,
+      symbol: s.symbol,
+      summary: s.thesis,
+      confidence: s.confidence,
+      source: s.source.toUpperCase() as any,
+      stopLoss: s.stopLoss,
+      takeProfit: s.takeProfit
+    }))
+  });
+
+  const to = user.apiSetting?.dailyEmailTo || user.email;
+  if (to && process.env.RESEND_API_KEY) {
+    await sendDailyEmail({
+      to,
+      userName: user.name ?? undefined,
+      signals,
+      holdings: user.holdings.map((h) => ({
+        asset: h.asset,
+        amount: Number(h.amount),
+        value: Number(h.amount) * (markets.find((m) => m.symbol === h.asset)?.price ?? 0)
+      }))
+    });
+  }
+
+  return NextResponse.json({ ok: true, signals });
+}

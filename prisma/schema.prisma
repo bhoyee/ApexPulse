@@ -84,6 +84,8 @@ model Transaction {
   quantity    Decimal  @db.Decimal(18, 8)
   price       Decimal  @db.Decimal(18, 8)
   fee         Decimal? @db.Decimal(18, 8)
+  externalId  String?  @unique
+  source      String?  @default("binance")
   executedAt  DateTime @default(now())
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

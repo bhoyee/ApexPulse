@@ -7,6 +7,7 @@ import { HoldingsTable } from "../components/holdings-table";
 import { SignalList } from "../components/signal-list";
 import { MarketRadar } from "../components/market-radar";
 import { getMarketTickers } from "../lib/binance";
+import { TradesTable } from "../components/trades-table";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -16,6 +17,12 @@ export default async function DashboardPage() {
 
   const holdings = await prisma.holding.findMany({
     where: { userId: session.user.id }
+  });
+
+  const trades = await prisma.transaction.findMany({
+    where: { userId: session.user.id },
+    orderBy: { executedAt: "desc" },
+    take: 100
   });
 
   const signals = await prisma.signal.findMany({
@@ -73,6 +80,14 @@ export default async function DashboardPage() {
     createdAt: s.createdAt.toISOString()
   }));
 
+  const tradesSafe = trades.map((t) => ({
+    ...t,
+    quantity: Number(t.quantity),
+    price: Number(t.price),
+    fee: t.fee ? Number(t.fee) : undefined,
+    executedAt: t.executedAt.toISOString()
+  }));
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -109,6 +124,7 @@ export default async function DashboardPage() {
           </div>
           <SignalList initial={signalsSafe as any} />
         </div>
+        <TradesTable initial={tradesSafe as any} />
       </main>
     </div>
   );

@@ -80,6 +80,11 @@ export default async function DashboardPage() {
     createdAt: s.createdAt.toISOString()
   }));
 
+  const priceList = markets.map((m) => ({
+    symbol: m.symbol.toUpperCase(),
+    price: m.price
+  }));
+
   const tradesSafe = trades.map((t) => ({
     ...t,
     quantity: Number(t.quantity),
@@ -124,7 +129,7 @@ export default async function DashboardPage() {
           </div>
           <SignalList initial={signalsSafe as any} />
         </div>
-        <TradesTable initial={tradesSafe as any} />
+        <TradesTable initial={tradesSafe as any} prices={priceList as any} />
       </main>
     </div>
   );

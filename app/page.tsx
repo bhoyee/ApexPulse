@@ -35,7 +35,7 @@ export default async function DashboardPage() {
       ...holdings.map((h) => h.asset.toUpperCase()),
       ...trades.map((t) => t.symbol.toUpperCase())
     ])
-  ).slice(0, 50);
+  );
 
   let markets =
     symbolsAll.length > 0
@@ -59,6 +59,14 @@ export default async function DashboardPage() {
     (sum, h) => sum + Number(h.amount) * (priceMap[h.asset] ?? 0),
     0
   );
+
+  const holdingsWithValue = holdings
+    .map((h) => {
+      const price = priceMap[h.asset] ?? 0;
+      const value = Number(h.amount) * price;
+      return { symbol: h.asset, price, value };
+    })
+    .filter((h) => h.value > 5);
 
   const stats = {
     portfolioValue,
@@ -126,7 +134,7 @@ export default async function DashboardPage() {
         </section>
 
         <StatCards stats={stats} />
-        <MarketRadar markets={markets} />
+        <MarketRadar markets={holdingsWithValue as any} />
         <div className="grid gap-4">
           <HoldingsTable initialHoldings={holdingsSafe as any} initialPrices={markets as any} />
           <TradesTable initial={tradesSafe as any} prices={priceList as any} />

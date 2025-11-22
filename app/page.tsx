@@ -4,7 +4,6 @@ import { prisma } from "../lib/prisma";
 import { Navbar } from "../components/navbar";
 import { StatCards } from "../components/stat-cards";
 import { HoldingsTable } from "../components/holdings-table";
-import { SignalList } from "../components/signal-list";
 import { MarketRadar } from "../components/market-radar";
 import { getMarketTickers } from "../lib/binance";
 import { TradesTable } from "../components/trades-table";
@@ -128,13 +127,10 @@ export default async function DashboardPage() {
 
         <StatCards stats={stats} />
         <MarketRadar markets={markets} />
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <HoldingsTable initialHoldings={holdingsSafe as any} initialPrices={markets as any} />
-          </div>
-          <SignalList initial={signalsSafe as any} />
+        <div className="grid gap-4">
+          <HoldingsTable initialHoldings={holdingsSafe as any} initialPrices={markets as any} />
+          <TradesTable initial={tradesSafe as any} prices={priceList as any} />
         </div>
-        <TradesTable initial={tradesSafe as any} prices={priceList as any} />
       </main>
     </div>
   );

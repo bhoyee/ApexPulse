@@ -144,6 +144,64 @@ export async function getMarketTickers(symbols: string[]) {
   return Array.from(tickerMap.values());
 }
 
+export async function getBinanceTrades(
+  symbols: string[],
+  apiKey?: string,
+  apiSecret?: string
+) {
+  const key = apiKey || process.env.BINANCE_API_KEY;
+  const secret = apiSecret || process.env.BINANCE_API_SECRET;
+  if (!key || !secret) return [];
+
+  const results: Array<{
+    id: string;
+    symbol: string;
+    qty: number;
+    price: number;
+    commission?: number;
+    isBuyer: boolean;
+    time: number;
+  }> = [];
+
+  for (const sym of symbols) {
+    const pair = `${sym.toUpperCase()}USDT`;
+    const timestamp = Date.now();
+    const query = `symbol=${pair}&limit=100&timestamp=${timestamp}`;
+    const signature = signParams(query, secret);
+    const url = `${BINANCE_API}/api/v3/myTrades?${query}&signature=${signature}`;
+
+    try {
+      const res = await fetch(url, {
+        headers: { "X-MBX-APIKEY": key }
+      });
+      if (!res.ok) continue;
+      const json = (await res.json()) as Array<{
+        id: number;
+        qty: string;
+        price: string;
+        commission: string;
+        isBuyer: boolean;
+        time: number;
+      }>;
+      json.forEach((trade) => {
+        results.push({
+          id: `${pair}-${trade.id}`,
+          symbol: sym.toUpperCase(),
+          qty: Number(trade.qty),
+          price: Number(trade.price),
+          commission: trade.commission ? Number(trade.commission) : undefined,
+          isBuyer: trade.isBuyer,
+          time: trade.time
+        });
+      });
+    } catch {
+      // ignore errors per symbol
+    }
+  }
+
+  return results;
+}
+
 export function streamMiniTickers(
   onData: (ticker: { symbol: string; price: number; change: number }) => void
 ) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { formatCurrency } from "../lib/utils";
 import { toast } from "sonner";
@@ -39,6 +40,11 @@ export function TradesTable({
   prices: Price[];
 }) {
   const client = useQueryClient();
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+  const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
   const { data = initial } = useQuery({
     queryKey: ["trades"],
     queryFn: fetchTrades,
@@ -57,6 +63,18 @@ export function TradesTable({
     acc[p.symbol.toUpperCase()] = p.price;
     return acc;
   }, {});
+
+  const filtered = data
+    .filter((t) => t.symbol.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const aTime = new Date(a.executedAt).getTime();
+      const bTime = new Date(b.executedAt).getTime();
+      return sortDir === "desc" ? bTime - aTime : aTime - bTime;
+    });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const tradesPage = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const syncTrades = useMutation({
     mutationFn: async () => {
@@ -83,19 +101,30 @@ export function TradesTable({
             Auto-synced from Binance; shows each fill and live P/L.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => syncTrades.mutate()}
-          disabled={syncTrades.isPending}
-        >
-          {syncTrades.isPending ? "Syncing…" : "Sync Binance trades"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            className="hidden rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm sm:block"
+            placeholder="Filter..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncTrades.mutate()}
+            disabled={syncTrades.isPending}
+          >
+            {syncTrades.isPending ? "Syncing…" : "Sync Binance trades"}
+          </Button>
+        </div>
       </div>
 
       {/* Mobile cards */}
       <div className="space-y-3 sm:hidden">
-        {data.map((t) => {
+        {tradesPage.map((t) => {
           const qty = Number(t.quantity);
           const buyPrice = Number(t.price);
           const investment = qty * buyPrice;
@@ -162,7 +191,7 @@ export function TradesTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {data.map((t) => {
+            {tradesPage.map((t) => {
               const qty = Number(t.quantity);
               const buyPrice = Number(t.price);
               const investment = qty * buyPrice;
@@ -193,6 +222,45 @@ export function TradesTable({
             })}
           </tbody>
         </table>
+        <div className="flex items-center justify-between border-t border-white/10 bg-white/5 px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span>Sort</span>
+            <button
+              className="rounded-md border border-white/10 px-2 py-1"
+              onClick={() => setSortDir(sortDir === "desc" ? "asc" : "desc")}
+            >
+              {sortDir === "desc" ? "Newest" : "Oldest"}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              className="rounded-md border border-white/10 bg-transparent px-2 py-1"
+              placeholder="Filter..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+            <button
+              className="rounded-md border border-white/10 px-2 py-1 disabled:opacity-50"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Prev
+            </button>
+            <span>
+              Page {currentPage} / {totalPages} • {filtered.length} trades
+            </span>
+            <button
+              className="rounded-md border border-white/10 px-2 py-1 disabled:opacity-50"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

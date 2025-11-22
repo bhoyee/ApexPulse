@@ -9,7 +9,8 @@ import { cn } from "../lib/utils";
 
 const links = [
   { href: "/", label: "Dashboard" },
-  { href: "/settings", label: "Settings" }
+  { href: "/settings", label: "Settings" },
+  { href: "/signals", label: "AI Signals" }
 ];
 
 export function Navbar() {

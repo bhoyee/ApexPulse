@@ -143,9 +143,77 @@ export async function getMarketTickers(symbols: string[]) {
     }
   });
 
+  const stillMissing = uniqueSymbols.filter(
+    (sym) => !tickerMap.has(sym.toUpperCase())
+  );
+  if (stillMissing.length) {
+    const cg = await getCoingeckoPrices(stillMissing);
+    cg.forEach((item) => tickerMap.set(item.symbol.toUpperCase(), item));
+  }
+
+  // Final safety: ask Binance avgPrice for any remaining symbols
+  const finalMissing = uniqueSymbols.filter((sym) => !tickerMap.has(sym.toUpperCase()));
+  await Promise.all(
+    finalMissing.map(async (sym) => {
+      try {
+        const res = await fetch(`${BINANCE_API}/api/v3/avgPrice?symbol=${sym}USDT`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { price?: string };
+        const price = Number(data.price);
+        if (!price || Number.isNaN(price)) return;
+        tickerMap.set(sym.toUpperCase(), {
+          symbol: sym.toUpperCase(),
+          price,
+          change24h: 0,
+          volume: 0,
+          high: price,
+          low: price
+        });
+      } catch {
+        // ignore
+      }
+    })
+  );
+
   return Array.from(tickerMap.values());
 }
 
+const COINGECKO_IDS: Record<string, string> = {
+  VET: "vechain",
+  HBAR: "hedera-hashgraph",
+  PEPE: "pepe",
+  SUI: "sui",
+  AVNT: "avant",
+  BTC: "bitcoin",
+  ETH: "ethereum"
+};
+
+async function getCoingeckoPrices(symbols: string[]) {
+  const ids = symbols
+    .map((s) => COINGECKO_IDS[s.toUpperCase()])
+    .filter(Boolean)
+    .join(",");
+  if (!ids) return [];
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = (await res.json()) as Record<string, { usd: number }>;
+  return Object.entries(data).map(([id, val]) => {
+    const symbol = Object.entries(COINGECKO_IDS).find(
+      ([, v]) => v === id
+    )?.[0];
+    return symbol
+      ? {
+          symbol,
+          price: Number(val.usd),
+          change24h: 0,
+          volume: 0,
+          high: Number(val.usd),
+          low: Number(val.usd)
+        }
+      : null;
+  }).filter(Boolean) as any[];
+}
 export async function getBinanceTrades(
   symbols: string[],
   apiKey?: string,

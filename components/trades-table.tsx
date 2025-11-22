@@ -8,11 +8,14 @@ import { toast } from "sonner";
 interface Trade {
   id: string;
   symbol: string;
-  type: "BUY" | "SELL" | "TRANSFER";
   quantity: number;
   price: number;
-  fee?: number;
   executedAt: string;
+}
+
+interface Price {
+  symbol: string;
+  price: number;
 }
 
 async function fetchTrades(): Promise<Trade[]> {
@@ -21,13 +24,24 @@ async function fetchTrades(): Promise<Trade[]> {
   return res.json();
 }
 
-export function TradesTable({ initial }: { initial: Trade[] }) {
+export function TradesTable({
+  initial,
+  prices
+}: {
+  initial: Trade[];
+  prices: Price[];
+}) {
   const client = useQueryClient();
   const { data = initial } = useQuery({
     queryKey: ["trades"],
     queryFn: fetchTrades,
     initialData: initial
   });
+
+  const priceMap = prices.reduce<Record<string, number>>((acc, p) => {
+    acc[p.symbol.toUpperCase()] = p.price;
+    return acc;
+  }, {});
 
   const syncTrades = useMutation({
     mutationFn: async () => {
@@ -49,9 +63,9 @@ export function TradesTable({ initial }: { initial: Trade[] }) {
     <div className="glass rounded-xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-muted-foreground">Trade history</p>
+          <p className="text-sm font-semibold text-muted-foreground">Trade history (buys only)</p>
           <p className="text-xs text-muted-foreground">
-            Pulls per-symbol fills from Binance (USDT pairs).
+            Auto-synced from Binance; shows each fill and live P/L.
           </p>
         </div>
         <Button
@@ -68,32 +82,43 @@ export function TradesTable({ initial }: { initial: Trade[] }) {
           <thead className="bg-white/5">
             <tr>
               <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Symbol</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Type</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Investment (USD)</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Qty</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Price</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Fee</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Buy Price</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Current Price</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Present Value</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">P/L</th>
               <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Time</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {data.map((t) => (
-              <tr key={t.id} className="hover:bg-white/5">
-                <td className="px-3 py-2 font-semibold">{t.symbol}</td>
-                <td className="px-3 py-2 text-xs">
-                  <span className={t.type === "BUY" ? "text-emerald-400" : "text-rose-400"}>
-                    {t.type}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right text-sm">{Number(t.quantity).toFixed(6)}</td>
-                <td className="px-3 py-2 text-right text-sm">{formatCurrency(Number(t.price))}</td>
-                <td className="px-3 py-2 text-right text-sm">
-                  {t.fee ? formatCurrency(Number(t.fee)) : "—"}
-                </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">
-                  {new Date(t.executedAt).toLocaleString()}
-                </td>
-              </tr>
-            ))}
+            {data.map((t) => {
+              const investment = Number(t.quantity) * Number(t.price);
+              const currentPrice = priceMap[t.symbol.toUpperCase()] ?? 0;
+              const presentValue = Number(t.quantity) * currentPrice;
+              const pnl = presentValue - investment;
+              const pnlClass = pnl >= 0 ? "text-emerald-400" : "text-rose-400";
+              return (
+                <tr key={t.id} className="hover:bg-white/5">
+                  <td className="px-3 py-2 font-semibold">{t.symbol}</td>
+                  <td className="px-3 py-2 text-right text-sm">{formatCurrency(investment)}</td>
+                  <td className="px-3 py-2 text-right text-sm">{Number(t.quantity).toFixed(6)}</td>
+                  <td className="px-3 py-2 text-right text-sm">{formatCurrency(Number(t.price))}</td>
+                  <td className="px-3 py-2 text-right text-sm">
+                    {currentPrice ? formatCurrency(currentPrice) : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right text-sm">
+                    {presentValue ? formatCurrency(presentValue) : "—"}
+                  </td>
+                  <td className={`px-3 py-2 text-right text-sm ${pnlClass}`}>
+                    {formatCurrency(pnl)}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {new Date(t.executedAt).toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

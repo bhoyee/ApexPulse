@@ -9,7 +9,7 @@ export async function GET() {
   }
 
   const trades = await prisma.transaction.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, type: "BUY" },
     orderBy: { executedAt: "desc" },
     take: 200
   });

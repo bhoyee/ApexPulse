@@ -85,24 +85,26 @@ async function syncTradesForUser(user: any, symbols: string[]) {
   if (!trades.length) return;
 
   await Promise.all(
-    trades.map((t) =>
-      prisma.transaction.upsert({
-        where: { externalId: t.id },
-        update: {},
-        create: {
-          userId: user.id,
-          holdingId: null,
-          type: t.isBuyer ? TransactionType.BUY : TransactionType.SELL,
-          symbol: t.symbol.toUpperCase(),
-          quantity: t.qty,
-          price: t.price,
-          fee: t.commission,
-          executedAt: new Date(t.time),
-          source: "binance",
-          externalId: t.id
-        }
-      })
-    )
+    trades
+      .filter((t) => t.isBuyer) // only keep buys
+      .map((t) =>
+        prisma.transaction.upsert({
+          where: { externalId: t.id },
+          update: {},
+          create: {
+            userId: user.id,
+            holdingId: null,
+            type: TransactionType.BUY,
+            symbol: t.symbol.toUpperCase(),
+            quantity: t.qty,
+            price: t.price,
+            fee: t.commission,
+            executedAt: new Date(t.time),
+            source: "binance",
+            externalId: t.id
+          }
+        })
+      )
   );
 }
 

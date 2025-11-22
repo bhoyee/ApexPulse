@@ -22,7 +22,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
     value: m.value
   }));
 
-  const colors = ["cyan", "violet", "emerald", "amber", "pink", "indigo", "lime"];
+  const colors = ["cyan", "violet", "emerald", "amber", "pink", "indigo", "lime", "red", "blue"];
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -43,7 +43,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
       <div className="chart-card">
         <h3 className="text-sm font-semibold text-muted-foreground">Dominance</h3>
         <DonutChart
-          className="mt-3 text-xs"
+          className="mt-3 h-72 text-xs"
           data={donut}
           category="value"
           index="name"

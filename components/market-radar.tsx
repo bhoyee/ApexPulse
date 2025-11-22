@@ -22,6 +22,8 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
     value: m.value
   }));
 
+  const colors = ["cyan", "violet", "emerald", "amber", "pink", "indigo", "lime"];
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="chart-card">
@@ -30,34 +32,24 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <span className="text-xs text-muted-foreground">Your held assets</span>
         </div>
         <BarChart
-          className="mt-4 h-64"
+          className="mt-4 h-64 text-xs"
           data={barData}
           index="symbol"
           categories={["value"]}
-          colors={["cyan"]}
+          colors={colors}
           valueFormatter={(n) => formatCurrency(Number(n))}
         />
       </div>
-      <div className="chart-card grid gap-4 md:grid-cols-2">
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground">Dominance</h3>
-          <DonutChart
-            className="mt-3"
-            data={donut}
-            category="value"
-            index="name"
-            colors={["cyan", "blue", "emerald", "violet", "amber", "pink"]}
-            valueFormatter={(n) => formatCurrency(Number(n))}
-          />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground">Value Pulse</h3>
-          <BarList
-            data={donut.map((d) => ({ name: d.name, value: d.value }))}
-            className="mt-3"
-            color="cyan"
-          />
-        </div>
+      <div className="chart-card">
+        <h3 className="text-sm font-semibold text-muted-foreground">Dominance</h3>
+        <DonutChart
+          className="mt-3 text-xs"
+          data={donut}
+          category="value"
+          index="name"
+          colors={colors}
+          valueFormatter={(n) => formatCurrency(Number(n))}
+        />
       </div>
     </div>
   );

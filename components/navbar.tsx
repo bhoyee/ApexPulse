@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "./ui/button";
-import { ThemeToggle } from "./theme-toggle";
 import { cn } from "../lib/utils";
 
 const links = [
@@ -47,7 +46,6 @@ export function Navbar() {
           ))}
         </nav>
         <div className="hidden items-center gap-2 sm:flex">
-          <ThemeToggle />
           {data?.user ? (
             <Button variant="outline" size="sm" onClick={() => signOut()}>
               Sign out
@@ -76,7 +74,6 @@ export function Navbar() {
               </Link>
             ))}
             <div className="flex items-center gap-2">
-              <ThemeToggle />
               {data?.user ? (
                 <Button variant="outline" size="sm" onClick={() => signOut()}>
                   Sign out

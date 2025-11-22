@@ -17,7 +17,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
     value: m.value
   }));
 
-  const colors = ["cyan", "violet", "emerald", "amber", "pink", "indigo", "lime", "red", "blue"];
+  const colors = ["red", "blue", "green", "yellow", "pink", "gray", "orange", "indigo", "lime"];
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
 

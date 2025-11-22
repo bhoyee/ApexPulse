@@ -9,10 +9,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const holdings = await prisma.holding.findMany({
-    where: { userId: session.user.id }
-  });
-  const symbols = Array.from(new Set(holdings.map((h) => h.asset))).slice(0, 24);
+  const [holdings, trades] = await Promise.all([
+    prisma.holding.findMany({ where: { userId: session.user.id } }),
+    prisma.transaction.findMany({
+      where: { userId: session.user.id, type: "BUY" },
+      select: { symbol: true }
+    })
+  ]);
+
+  const symbols = Array.from(
+    new Set([
+      ...holdings.map((h) => h.asset.toUpperCase()),
+      ...trades.map((t) => t.symbol.toUpperCase())
+    ])
+  ).slice(0, 50);
+
   const markets = await getMarketTickers(symbols.length ? symbols : ["BTC", "ETH", "SOL"]);
 
   // ensure stables always have price 1

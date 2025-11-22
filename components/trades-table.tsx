@@ -24,6 +24,13 @@ async function fetchTrades(): Promise<Trade[]> {
   return res.json();
 }
 
+async function fetchPrices(): Promise<Price[]> {
+  const res = await fetch("/api/prices");
+  if (!res.ok) throw new Error("Failed to load prices");
+  const data = await res.json();
+  return data.markets ?? [];
+}
+
 export function TradesTable({
   initial,
   prices
@@ -38,7 +45,13 @@ export function TradesTable({
     initialData: initial
   });
 
-  const priceMap = prices.reduce<Record<string, number>>((acc, p) => {
+  const { data: livePrices = prices } = useQuery({
+    queryKey: ["prices"],
+    queryFn: fetchPrices,
+    initialData: prices
+  });
+
+  const priceMap = livePrices.reduce<Record<string, number>>((acc, p) => {
     acc[p.symbol.toUpperCase()] = p.price;
     return acc;
   }, {});

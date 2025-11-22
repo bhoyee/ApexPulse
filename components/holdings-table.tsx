@@ -109,28 +109,18 @@ export function HoldingsTable({
 
 
   const { data: holdings = initialHoldings } = useQuery({
-
     queryKey: ["holdings"],
-
     queryFn: fetchHoldings,
-
-    initialData: initialHoldings
-
+    initialData: initialHoldings,
+    refetchInterval: 15000
   });
-
-
 
   const { data: prices = initialPrices } = useQuery({
-
     queryKey: ["prices"],
-
     queryFn: fetchPrices,
-
-    initialData: initialPrices
-
+    initialData: initialPrices,
+    refetchInterval: 15000
   });
-
-
 
   const createMutation = useMutation({
 
@@ -691,4 +681,3 @@ export function HoldingsTable({
   );
 
 }
-

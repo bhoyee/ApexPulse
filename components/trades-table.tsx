@@ -45,13 +45,15 @@ export function TradesTable({
   const { data = initial } = useQuery({
     queryKey: ["trades"],
     queryFn: fetchTrades,
-    initialData: initial
+    initialData: initial,
+    refetchInterval: 15000
   });
 
   const { data: livePrices = prices } = useQuery({
     queryKey: ["prices"],
     queryFn: fetchPrices,
-    initialData: prices
+    initialData: prices,
+    refetchInterval: 15000
   });
 
   const combinedPrices = [...prices, ...livePrices];

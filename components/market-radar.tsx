@@ -1,28 +1,25 @@
 "use client";
 
-import { AreaChart, BarList, DonutChart } from "@tremor/react";
+import { BarChart, DonutChart, BarList } from "@tremor/react";
 import { formatCurrency } from "../lib/utils";
 
-interface Snapshot {
+interface AssetSnapshot {
   symbol: string;
   price: number;
-  change24h?: number;
-  volume?: number;
+  value: number;
 }
 
-export function MarketRadar({ markets }: { markets: Snapshot[] }) {
-  const series = markets.map((m, idx) => ({
-    timestamp: idx,
-    symbol: m.symbol,
-    price: m.price
-  }));
-  const donut = markets.map((m) => ({
+export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
+  const data = markets.filter((m) => m.value > 5);
+
+  const donut = data.map((m) => ({
     name: m.symbol,
-    value: m.volume || m.price * 1000
+    value: m.value
   }));
-  const barList = markets.map((m) => ({
-    name: `${m.symbol} (${m.change24h?.toFixed(2) ?? 0}%)`,
-    value: m.volume || m.price * 1000
+
+  const barData = data.map((m) => ({
+    symbol: m.symbol,
+    value: m.value
   }));
 
   return (
@@ -30,15 +27,14 @@ export function MarketRadar({ markets }: { markets: Snapshot[] }) {
       <div className="chart-card">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
-          <span className="text-xs text-muted-foreground">Live from Binance</span>
+          <span className="text-xs text-muted-foreground">Your held assets</span>
         </div>
-        <AreaChart
+        <BarChart
           className="mt-4 h-64"
-          data={series}
-          categories={["price"]}
-          index="timestamp"
+          data={barData}
+          index="symbol"
+          categories={["value"]}
           colors={["cyan"]}
-          showLegend={false}
           valueFormatter={(n) => formatCurrency(Number(n))}
         />
       </div>
@@ -51,11 +47,16 @@ export function MarketRadar({ markets }: { markets: Snapshot[] }) {
             category="value"
             index="name"
             colors={["cyan", "blue", "emerald", "violet", "amber", "pink"]}
+            valueFormatter={(n) => formatCurrency(Number(n))}
           />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground">Volume Pulse</h3>
-          <BarList data={barList} className="mt-3" color="cyan" />
+          <h3 className="text-sm font-semibold text-muted-foreground">Value Pulse</h3>
+          <BarList
+            data={donut.map((d) => ({ name: d.name, value: d.value }))}
+            className="mt-3"
+            color="cyan"
+          />
         </div>
       </div>
     </div>

@@ -177,7 +177,55 @@ export function HoldingsTable({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/10">
+      {/* Mobile cards */}
+      <div className="space-y-3 sm:hidden">
+        {rows.map((row) => (
+          <div key={row.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">{row.asset}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => removeMutation.mutate(row.id)}
+              >
+                Remove
+              </Button>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <div>
+                <p>Amount</p>
+                <p className="text-foreground">{Number(row.amount).toFixed(4)}</p>
+              </div>
+              <div>
+                <p>Value</p>
+                <p className="text-foreground">{formatCurrency(row.current)}</p>
+              </div>
+              <div>
+                <p>24h</p>
+                <p className="text-foreground">
+                  {row.market ? formatPercent(row.market.change24h ?? 0) : "—"}
+                </p>
+              </div>
+              <div>
+                <p>P/L</p>
+                <p className={row.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                  {formatPercent(row.pnl)}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">Total</span>
+            <span>{formatCurrency(totalValue)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-hidden rounded-xl border border-white/10 sm:block">
         <table className="min-w-full divide-y divide-white/10">
           <thead className="bg-white/5">
             <tr>

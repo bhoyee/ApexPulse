@@ -101,28 +101,30 @@ export async function getMarketTickers(symbols: string[]) {
     (sym) => !tickerMap.has(sym.toUpperCase())
   );
 
+  const quotePrefs = ["USDT", "BUSD", "FDUSD", "USDC"];
+
   await Promise.all(
     missingSymbols.map(async (sym) => {
-      try {
-        const url = `${BINANCE_API}/api/v3/ticker/price?symbol=${sym}USDT`;
-        const res = await fetch(url);
-        if (!res.ok) {
-          // Some symbols may not have a USDT pair; ignore
-          return;
+      for (const quote of quotePrefs) {
+        try {
+          const url = `${BINANCE_API}/api/v3/ticker/price?symbol=${sym}${quote}`;
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const data = (await res.json()) as { price?: string };
+          const price = Number(data.price);
+          if (!price || Number.isNaN(price)) continue;
+          tickerMap.set(sym.toUpperCase(), {
+            symbol: sym.toUpperCase(),
+            price,
+            change24h: 0,
+            volume: 0,
+            high: price,
+            low: price
+          });
+          break;
+        } catch {
+          // continue trying other quotes
         }
-        const data = (await res.json()) as { price?: string };
-        const price = Number(data.price);
-        if (!price || Number.isNaN(price)) return;
-        tickerMap.set(sym.toUpperCase(), {
-          symbol: sym.toUpperCase(),
-          price,
-          change24h: 0,
-          volume: 0,
-          high: price,
-          low: price
-        });
-      } catch {
-        // ignore fallback failures
       }
     })
   );

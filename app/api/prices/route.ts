@@ -41,5 +41,12 @@ export async function GET() {
     }
   });
 
+  const missing = symbols.filter(
+    (s) => !markets.find((m) => m.symbol === s && m.price > 0)
+  );
+  if (missing.length) {
+    console.warn("prices missing symbols", missing);
+  }
+
   return NextResponse.json({ markets });
 }

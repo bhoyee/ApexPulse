@@ -1,10 +1,8 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button } from "./ui/button";
 import { formatCurrency } from "../lib/utils";
-import { toast } from "sonner";
 
 interface Trade {
   id: string;
@@ -39,7 +37,6 @@ export function TradesTable({
   initial: Trade[];
   prices: Price[];
 }) {
-  const client = useQueryClient();
   const [page, setPage] = useState(1);
   const pageSize = 8;
   const [search, setSearch] = useState("");
@@ -76,22 +73,6 @@ export function TradesTable({
   const currentPage = Math.min(page, totalPages);
   const tradesPage = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const syncTrades = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/sync/binance/trades", { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Unable to sync trades");
-      }
-      return res.json();
-    },
-    onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ["trades"] });
-      toast.success("Binance trades synced");
-    },
-    onError: (err: any) => toast.error(err.message)
-  });
-
   return (
     <div className="glass rounded-xl p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -111,14 +92,6 @@ export function TradesTable({
               setPage(1);
             }}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => syncTrades.mutate()}
-            disabled={syncTrades.isPending}
-          >
-            {syncTrades.isPending ? "Syncing…" : "Sync Binance trades"}
-          </Button>
         </div>
       </div>
 

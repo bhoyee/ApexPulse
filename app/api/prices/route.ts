@@ -22,7 +22,7 @@ export async function GET() {
       ...holdings.map((h) => h.asset.toUpperCase()),
       ...trades.map((t) => t.symbol.toUpperCase())
     ])
-  ).slice(0, 50);
+  );
 
   const markets = await getMarketTickers(symbols.length ? symbols : ["BTC", "ETH", "SOL"]);
 
@@ -45,7 +45,7 @@ export async function GET() {
     (s) => !markets.find((m) => m.symbol === s && m.price > 0)
   );
   if (missing.length) {
-    console.warn("prices missing symbols", missing);
+    console.warn("prices missing symbols", missing, "fetched", markets.map((m) => `${m.symbol}:${m.price}`));
   }
 
   return NextResponse.json({ markets });

@@ -92,7 +92,62 @@ export function TradesTable({
           {syncTrades.isPending ? "Syncing…" : "Sync Binance trades"}
         </Button>
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Mobile cards */}
+      <div className="space-y-3 sm:hidden">
+        {data.map((t) => {
+          const qty = Number(t.quantity);
+          const buyPrice = Number(t.price);
+          const investment = qty * buyPrice;
+          const currentPrice = priceMap[t.symbol.toUpperCase()] ?? 0;
+          const presentValue = qty * currentPrice;
+          const pnl = presentValue - investment;
+          const pnlClass = pnl >= 0 ? "text-emerald-400" : "text-rose-400";
+          return (
+            <div key={t.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center justify-between text-sm font-semibold">
+                <span>{t.symbol}</span>
+                <span className={pnlClass}>{formatCurrency(pnl)}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                <div>
+                  <p>Investment</p>
+                  <p className="text-foreground">{formatCurrency(investment)}</p>
+                </div>
+                <div>
+                  <p>Qty</p>
+                  <p className="text-foreground">{qty.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p>Buy price</p>
+                  <p className="text-foreground">{formatCurrency(buyPrice)}</p>
+                </div>
+                <div>
+                  <p>Current price</p>
+                  <p className="text-foreground">
+                    {currentPrice ? formatCurrency(currentPrice) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p>Present value</p>
+                  <p className="text-foreground">
+                    {presentValue ? formatCurrency(presentValue) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p>Time</p>
+                  <p className="text-foreground">
+                    {new Date(t.executedAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto sm:block">
         <table className="min-w-full divide-y divide-white/10">
           <thead className="bg-white/5">
             <tr>

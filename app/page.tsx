@@ -31,11 +31,16 @@ export default async function DashboardPage() {
     take: 10
   });
 
+  const symbolsAll = Array.from(
+    new Set([
+      ...holdings.map((h) => h.asset.toUpperCase()),
+      ...trades.map((t) => t.symbol.toUpperCase())
+    ])
+  ).slice(0, 50);
+
   let markets =
-    holdings.length > 0
-      ? await getMarketTickers(
-          Array.from(new Set(holdings.map((h) => h.asset))).slice(0, 10)
-        )
+    symbolsAll.length > 0
+      ? await getMarketTickers(symbolsAll)
       : [];
 
   if (!markets.length) {

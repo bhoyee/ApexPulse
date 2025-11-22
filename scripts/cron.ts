@@ -1,8 +1,17 @@
 import "dotenv/config";
-import { PrismaClient, SyncJobStatus, SyncJobType } from "@prisma/client";
+import {
+  PrismaClient,
+  SyncJobStatus,
+  SyncJobType,
+  TransactionType
+} from "@prisma/client";
 import { generateSwingSignals } from "../lib/ai";
 import { sendDailyEmail } from "../lib/email";
-import { getMarketTickers, getBinanceBalances } from "../lib/binance";
+import {
+  getMarketTickers,
+  getBinanceBalances,
+  getBinanceTrades
+} from "../lib/binance";
 
 const prisma = new PrismaClient();
 const MIN_VALUE_USD =
@@ -63,6 +72,40 @@ async function syncHoldingsForUser(user: any) {
   );
 }
 
+async function syncTradesForUser(user: any, symbols: string[]) {
+  const settings = user.apiSetting;
+  if (!settings?.binanceApiKey || !settings?.binanceApiSecret) return;
+  if (!symbols.length) return;
+
+  const trades = await getBinanceTrades(
+    symbols,
+    settings.binanceApiKey,
+    settings.binanceApiSecret
+  );
+  if (!trades.length) return;
+
+  await Promise.all(
+    trades.map((t) =>
+      prisma.transaction.upsert({
+        where: { externalId: t.id },
+        update: {},
+        create: {
+          userId: user.id,
+          holdingId: null,
+          type: t.isBuyer ? TransactionType.BUY : TransactionType.SELL,
+          symbol: t.symbol.toUpperCase(),
+          quantity: t.qty,
+          price: t.price,
+          fee: t.commission,
+          executedAt: new Date(t.time),
+          source: "binance",
+          externalId: t.id
+        }
+      })
+    )
+  );
+}
+
 async function runDaily() {
   const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
 
@@ -80,6 +123,10 @@ async function runDaily() {
     const refreshedHoldings = await prisma.holding.findMany({
       where: { userId: user.id }
     });
+    const symbols = Array.from(new Set(refreshedHoldings.map((h) => h.asset)));
+
+    // Sync trades per symbol (USDT pairs)
+    await syncTradesForUser(user, symbols);
 
     const holdingsValue = refreshedHoldings.map((h) => {
       const price = markets.find((m) => m.symbol === h.asset)?.price ?? 0;

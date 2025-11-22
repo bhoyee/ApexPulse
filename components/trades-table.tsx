@@ -51,7 +51,9 @@ export function TradesTable({
     initialData: prices
   });
 
-  const priceMap = livePrices.reduce<Record<string, number>>((acc, p) => {
+  const combinedPrices = [...prices, ...livePrices];
+
+  const priceMap = combinedPrices.reduce<Record<string, number>>((acc, p) => {
     acc[p.symbol.toUpperCase()] = p.price;
     return acc;
   }, {});
@@ -106,17 +108,19 @@ export function TradesTable({
           </thead>
           <tbody className="divide-y divide-white/5">
             {data.map((t) => {
-              const investment = Number(t.quantity) * Number(t.price);
+              const qty = Number(t.quantity);
+              const buyPrice = Number(t.price);
+              const investment = qty * buyPrice;
               const currentPrice = priceMap[t.symbol.toUpperCase()] ?? 0;
-              const presentValue = Number(t.quantity) * currentPrice;
+              const presentValue = qty * currentPrice;
               const pnl = presentValue - investment;
               const pnlClass = pnl >= 0 ? "text-emerald-400" : "text-rose-400";
               return (
                 <tr key={t.id} className="hover:bg-white/5">
                   <td className="px-3 py-2 font-semibold">{t.symbol}</td>
                   <td className="px-3 py-2 text-right text-sm">{formatCurrency(investment)}</td>
-                  <td className="px-3 py-2 text-right text-sm">{Number(t.quantity).toFixed(6)}</td>
-                  <td className="px-3 py-2 text-right text-sm">{formatCurrency(Number(t.price))}</td>
+                  <td className="px-3 py-2 text-right text-sm">{qty.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right text-sm">{formatCurrency(buyPrice)}</td>
                   <td className="px-3 py-2 text-right text-sm">
                     {currentPrice ? formatCurrency(currentPrice) : "—"}
                   </td>

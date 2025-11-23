@@ -77,10 +77,7 @@ export function TradesTable({
   const currentPage = Math.min(page, totalPages);
   const tradesPage = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete trade");
+        if (!res.ok) throw new Error("Failed to delete trade");
     },
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["trades"] });

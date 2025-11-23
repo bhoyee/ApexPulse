@@ -23,11 +23,19 @@ export async function POST(req: Request) {
   }
 
   const data = await req.json();
-  const { asset, amount, avgBuyPrice, tags } = data;
+  const { asset, amount, avgBuyPrice, tags, timestamp } = data;
   const amountNum = Number(amount);
   const avgNum = Number(avgBuyPrice);
   if (!asset || Number.isNaN(amountNum) || Number.isNaN(avgNum)) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  let createdAt: Date | undefined;
+  if (timestamp) {
+    const t = new Date(timestamp);
+    if (!Number.isNaN(t.getTime())) {
+      createdAt = t;
+    }
   }
 
   const holding = await prisma.holding.create({
@@ -36,7 +44,8 @@ export async function POST(req: Request) {
       amount: amountNum,
       avgBuyPrice: avgNum,
       tags,
-      userId: session.user.id
+      userId: session.user.id,
+      ...(createdAt ? { createdAt } : {})
     }
   });
 

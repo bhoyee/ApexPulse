@@ -103,6 +103,7 @@ export function HoldingsTable({
   const [investmentUsd, setInvestmentUsd] = useState("1000");
 
   const [quantity, setQuantity] = useState("1");
+  const [timestamp, setTimestamp] = useState("");
 
   const [buyPrice, setBuyPrice] = useState("1000");
 
@@ -149,8 +150,8 @@ export function HoldingsTable({
           amount: qty,
 
           avgBuyPrice: buy,
-
-          tags: []
+          tags: [],
+          timestamp: timestamp || undefined
 
         })
 
@@ -347,6 +348,15 @@ export function HoldingsTable({
               step="0.0001"
 
               min="0"
+          <div>
+            <Label htmlFor="ts">Date/Time (optional)</Label>
+            <Input
+              id="ts"
+              value={timestamp}
+              onChange={(e) => setTimestamp(e.target.value)}
+              type="datetime-local"
+            />
+          </div>
 
             />
 

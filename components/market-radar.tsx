@@ -9,18 +9,29 @@ interface AssetSnapshot {
   value: number;
 }
 
+const palette = [
+  "#f87171", // red
+  "#60a5fa", // blue
+  "#34d399", // green
+  "#facc15", // yellow
+  "#f472b6", // pink
+  "#9ca3af", // gray
+  "#fb923c", // orange/amber
+  "#22d3ee", // cyan
+  "#a78bfa"  // indigo/violet
+];
+
 export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
   const data = markets.filter((m) => m.value > 5);
 
-  const donut = data.map((m) => ({
+  const donut = data.map((m, idx) => ({
     name: m.symbol,
-    value: m.value
+    value: m.value,
+    color: palette[idx % palette.length]
   }));
 
-  // Use Tremor-supported color tokens only
-  const colors = ["red", "blue", "green", "yellow", "pink", "gray", "amber", "cyan", "indigo"];
-
   const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const maxBarHeight = 220; // px
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -31,17 +42,20 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
         </div>
         <div className="mt-4 h-64 flex items-end gap-3 overflow-x-auto pb-4">
           {data.map((item, idx) => {
-            const heightPct = Math.max((item.value / maxValue) * 100, 6);
-            const color = colors[idx % colors.length];
+            const heightPx = Math.max((item.value / maxValue) * maxBarHeight, 12);
+            const color = palette[idx % palette.length];
             return (
-              <div key={item.symbol} className="flex flex-col items-center text-xs text-muted-foreground">
+              <div
+                key={item.symbol}
+                className="flex flex-col items-center text-xs text-muted-foreground"
+                title={`${item.symbol}: ${formatCurrency(item.value)}`}
+              >
                 <span className="mb-1 font-semibold text-card-foreground">
                   {formatCurrency(item.value)}
                 </span>
                 <div
                   className="w-10 rounded-t-md"
-                  style={{ height: `${heightPct}%`, backgroundColor: `var(--${color}-500, ${color})` }}
-                  title={`${item.symbol}: ${formatCurrency(item.value)}`}
+                  style={{ height: `${heightPx}px`, backgroundColor: color }}
                 />
                 <span className="mt-1 text-card-foreground">{item.symbol}</span>
               </div>
@@ -56,7 +70,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           data={donut}
           category="value"
           index="name"
-          colors={colors}
+          colors={donut.map((d) => d.color)}
           valueFormatter={(n) => formatCurrency(Number(n))}
         />
       </div>

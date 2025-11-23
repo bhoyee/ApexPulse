@@ -4,7 +4,6 @@ import { formatCurrency, formatPercent } from "../lib/utils";
 interface StatProps {
   portfolioValue: number;
   change24h: number;
-  realizedPnl30d: number;
   overallPnl: number;
   totalInvested: number;
   btcPrice: number;
@@ -14,7 +13,6 @@ interface StatProps {
 const icons = {
   value: Wallet,
   change: Activity,
-  realized: BarChart3,
   overall: BarChart3,
   invested: DollarSign,
   btc: Bitcoin,
@@ -41,13 +39,6 @@ export function StatCards({ stats }: { stats: StatProps }) {
       helper: "Total vs cost basis",
       icon: icons.overall,
       tone: stats.overallPnl >= 0 ? "text-emerald-400" : "text-rose-400"
-    },
-    {
-      label: "Realized PnL (30d)",
-      value: formatCurrency(stats.realizedPnl30d),
-      helper: "Based on recent trades",
-      icon: icons.realized,
-      tone: stats.realizedPnl30d >= 0 ? "text-emerald-400" : "text-rose-400"
     },
     {
       label: "Total Invested",

@@ -90,18 +90,10 @@ export function StatsLive({
     0
   );
 
-  const overallPnl = portfolioValue - totalInvested;
-
-  const now = Date.now();
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-  const holdings30d = holdings.filter((h) => {
-    const t = h.createdAt ? new Date(h.createdAt).getTime() : 0;
-    return t >= thirtyDaysAgo;
-  });
-
-  const realizedPnl30d = holdings30d.reduce((sum, h) => {
-    const cost = Number(h.amount) * Number(h.avgBuyPrice);
-    const current = Number(h.amount) * (priceMap[h.asset.toUpperCase()]?.price ?? 0);
+  const overallPnl = trades.reduce((sum, t) => {
+    const qty = Number(t.quantity);
+    const cost = qty * Number(t.price);
+    const current = qty * (priceMap[t.symbol.toUpperCase()]?.price ?? 0);
     return sum + (current - cost);
   }, 0);
 
@@ -121,7 +113,6 @@ export function StatsLive({
       stats={{
         portfolioValue,
         change24h,
-        realizedPnl30d,
         overallPnl,
         totalInvested,
         btcPrice,

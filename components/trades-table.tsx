@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { formatCurrency } from "../lib/utils";
+import { toast } from "sonner";
 
 interface Trade {
   id: string;
@@ -37,6 +38,7 @@ export function TradesTable({
   initial: Trade[];
   prices: Price[];
 }) {
+  const client = useQueryClient();
   const [page, setPage] = useState(1);
   const pageSize = 8;
   const [search, setSearch] = useState("");
@@ -74,6 +76,30 @@ export function TradesTable({
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const tradesPage = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete trade");
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["trades"] });
+      toast.success("Trade removed");
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete trade");
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["trades"] });
+      toast.success("Trade removed");
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
 
   return (
     <div className="glass rounded-xl p-4">
@@ -163,6 +189,7 @@ export function TradesTable({
               <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Present Value</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">P/L</th>
               <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Time</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground" />
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -191,6 +218,14 @@ export function TradesTable({
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {new Date(t.executedAt).toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      className="text-destructive underline-offset-2 hover:underline"
+                      onClick={() => deleteMutation.mutate(t.id)}
+                    >
+                      Remove
+                    </button>
                   </td>
                 </tr>
               );

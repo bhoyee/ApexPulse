@@ -79,7 +79,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
   }));
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const maxBarHeight = 320; // px for better fill
+  const maxBarHeight = 260; // px for better fill without overflow
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -89,7 +89,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <span className="text-xs text-muted-foreground">Your held assets</span>
         </div>
         <div className="mt-4 h-80 md:h-96 overflow-x-auto">
-          <div className="flex items-end gap-3">
+          <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {data.map((item, idx) => {
               const heightPx = Math.max((item.value / maxValue) * maxBarHeight, 12);
               const token = tokens[idx % tokens.length];
@@ -97,14 +97,14 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
               return (
                 <div
                   key={item.symbol}
-                  className="flex w-14 flex-col items-center text-[11px] text-muted-foreground"
+                  className="flex flex-col items-center text-[11px] text-muted-foreground"
                   title={`${item.symbol}: ${formatCurrency(item.value)}`}
                 >
                   <span className="mb-1 font-semibold text-card-foreground">
                     {formatCurrency(item.value)}
                   </span>
                   <div
-                    className="w-full rounded-t-md"
+                    className="w-full min-w-[48px] rounded-t-md"
                     style={{ height: `${heightPx}px`, backgroundColor: color }}
                   />
                   <span className="mt-1 text-card-foreground">{item.symbol}</span>
@@ -122,6 +122,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           category="value"
           index="name"
           colors={tokens}
+          showLegend={true}
           valueFormatter={(n) => formatCurrency(Number(n))}
         />
       </div>

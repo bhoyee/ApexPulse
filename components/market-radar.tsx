@@ -88,28 +88,30 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
           <span className="text-xs text-muted-foreground">Your held assets</span>
         </div>
-        <div className="mt-4 h-80 md:h-96 flex flex-wrap items-end gap-3 pb-4">
-          {data.map((item, idx) => {
-            const heightPx = Math.max((item.value / maxValue) * maxBarHeight, 12);
-            const token = tokens[idx % tokens.length];
-            const color = tokenHex[token] || token;
-            return (
-              <div
-                key={item.symbol}
-                className="flex min-w-[64px] basis-[45%] flex-1 flex-col items-center text-[11px] text-muted-foreground sm:basis-[30%] md:basis-[20%]"
-                title={`${item.symbol}: ${formatCurrency(item.value)}`}
-              >
-                <span className="mb-1 font-semibold text-card-foreground">
-                  {formatCurrency(item.value)}
-                </span>
+        <div className="mt-4 h-80 md:h-96 overflow-x-auto">
+          <div className="flex items-end gap-3">
+            {data.map((item, idx) => {
+              const heightPx = Math.max((item.value / maxValue) * maxBarHeight, 12);
+              const token = tokens[idx % tokens.length];
+              const color = tokenHex[token] || token;
+              return (
                 <div
-                  className="w-10 rounded-t-md"
-                  style={{ height: `${heightPx}px`, backgroundColor: color }}
-                />
-                <span className="mt-1 text-card-foreground">{item.symbol}</span>
-              </div>
-            );
-          })}
+                  key={item.symbol}
+                  className="flex w-14 flex-col items-center text-[11px] text-muted-foreground"
+                  title={`${item.symbol}: ${formatCurrency(item.value)}`}
+                >
+                  <span className="mb-1 font-semibold text-card-foreground">
+                    {formatCurrency(item.value)}
+                  </span>
+                  <div
+                    className="w-full rounded-t-md"
+                    style={{ height: `${heightPx}px`, backgroundColor: color }}
+                  />
+                  <span className="mt-1 text-card-foreground">{item.symbol}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
       <div className="chart-card bg-card border border-border text-card-foreground">
@@ -119,7 +121,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           data={donut}
           category="value"
           index="name"
-          colors={donut.map((d) => d.color)}
+          colors={tokens}
           valueFormatter={(n) => formatCurrency(Number(n))}
         />
       </div>

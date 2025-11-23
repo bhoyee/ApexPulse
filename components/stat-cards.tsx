@@ -1,18 +1,24 @@
-import { Activity, BarChart3, Brain, Wallet } from "lucide-react";
+import { Activity, BarChart3, Bitcoin, Coins, DollarSign, Wallet } from "lucide-react";
 import { formatCurrency, formatPercent } from "../lib/utils";
 
 interface StatProps {
   portfolioValue: number;
   change24h: number;
-  realizedPnl: number;
-  confidence: number;
+  realizedPnl30d: number;
+  overallPnl: number;
+  totalInvested: number;
+  btcPrice: number;
+  totalStables: number;
 }
 
 const icons = {
   value: Wallet,
   change: Activity,
-  pnl: BarChart3,
-  ai: Brain
+  realized: BarChart3,
+  overall: BarChart3,
+  invested: DollarSign,
+  btc: Bitcoin,
+  stables: Coins
 };
 
 export function StatCards({ stats }: { stats: StatProps }) {
@@ -30,16 +36,36 @@ export function StatCards({ stats }: { stats: StatProps }) {
       icon: icons.change
     },
     {
-      label: "Realized PnL",
-      value: formatCurrency(stats.realizedPnl),
-      helper: "Last 30d",
-      icon: icons.pnl
+      label: "Overall PnL",
+      value: formatCurrency(stats.overallPnl),
+      helper: "Total vs cost basis",
+      icon: icons.overall,
+      tone: stats.overallPnl >= 0 ? "text-emerald-400" : "text-rose-400"
     },
     {
-      label: "AI Confidence",
-      value: `${stats.confidence}%`,
-      helper: "Grok/OpenAI consensus",
-      icon: icons.ai
+      label: "Realized PnL (30d)",
+      value: formatCurrency(stats.realizedPnl30d),
+      helper: "Based on recent trades",
+      icon: icons.realized,
+      tone: stats.realizedPnl30d >= 0 ? "text-emerald-400" : "text-rose-400"
+    },
+    {
+      label: "Total Invested",
+      value: formatCurrency(stats.totalInvested),
+      helper: "All-time cost basis",
+      icon: icons.invested
+    },
+    {
+      label: "BTC Price",
+      value: formatCurrency(stats.btcPrice),
+      helper: "Live BTC/USDT",
+      icon: icons.btc
+    },
+    {
+      label: "Stable Balance",
+      value: formatCurrency(stats.totalStables),
+      helper: "USDT/FDUSD/USDC/etc.",
+      icon: icons.stables
     }
   ];
 
@@ -53,7 +79,7 @@ export function StatCards({ stats }: { stats: StatProps }) {
             </span>
             <div>
               <p className="text-xs text-muted-foreground">{item.label}</p>
-              <p className="text-xl font-semibold">{item.value}</p>
+              <p className={`text-xl font-semibold ${item.tone ?? ""}`}>{item.value}</p>
               <p className="text-xs text-muted-foreground">{item.helper}</p>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { auth } from "../lib/auth";
 import { prisma } from "../lib/prisma";
 import { Navbar } from "../components/navbar";
 import { StatCards } from "../components/stat-cards";
+import { StatsLive } from "../components/stats-live";
 import { HoldingsTable } from "../components/holdings-table";
 import { MarketRadar } from "../components/market-radar";
 import { getMarketTickers } from "../lib/binance";
@@ -21,13 +22,7 @@ export default async function DashboardPage() {
   const trades = await prisma.transaction.findMany({
     where: { userId: session.user.id },
     orderBy: { executedAt: "desc" },
-    take: 100
-  });
-
-  const signals = await prisma.signal.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-    take: 10
+    take: 200
   });
 
   const symbolsAll = Array.from(
@@ -68,28 +63,12 @@ export default async function DashboardPage() {
     })
     .filter((h) => h.value > 5);
 
-  const stats = {
-    portfolioValue,
-    change24h: markets.reduce((s, m) => s + (m.change24h ?? 0), 0) / markets.length || 0,
-    realizedPnl: 0,
-    confidence: signals.length
-      ? Math.round(
-          signals.reduce((s, sig) => s + (sig.confidence ?? 0), 0) / signals.length
-        )
-      : 72
-  };
-
   const holdingsSafe = holdings.map((h) => ({
     ...h,
     amount: Number(h.amount),
     avgBuyPrice: Number(h.avgBuyPrice),
     createdAt: h.createdAt.toISOString(),
     updatedAt: h.updatedAt.toISOString()
-  }));
-
-  const signalsSafe = signals.map((s) => ({
-    ...s,
-    createdAt: s.createdAt.toISOString()
   }));
 
   const priceList = markets.map((m) => ({
@@ -133,7 +112,11 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <StatCards stats={stats} />
+        <StatsLive
+          initialHoldings={holdingsSafe as any}
+          initialPrices={markets as any}
+          initialTrades={tradesSafe as any}
+        />
         <MarketRadar markets={holdingsWithValue as any} />
         <div className="grid gap-4">
           <HoldingsTable initialHoldings={holdingsSafe as any} initialPrices={markets as any} />

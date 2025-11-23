@@ -1,6 +1,7 @@
 "use client";
 
 import { DonutChart } from "@tremor/react";
+import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from "../lib/utils";
 
 interface AssetSnapshot {
@@ -21,8 +22,54 @@ const palette = [
   "#a78bfa"  // indigo/violet
 ];
 
+interface Holding {
+  asset: string;
+  amount: number;
+}
+interface Price {
+  symbol: string;
+  price: number;
+}
+
+async function fetchHoldings(): Promise<Holding[]> {
+  const res = await fetch("/api/holdings");
+  if (!res.ok) throw new Error("Failed to load holdings");
+  return res.json();
+}
+
+async function fetchPrices(): Promise<Price[]> {
+  const res = await fetch("/api/prices");
+  if (!res.ok) throw new Error("Failed to load prices");
+  const data = await res.json();
+  return data.markets ?? [];
+}
+
 export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
-  const data = markets.filter((m) => m.value > 5);
+  const { data: holdings = [] } = useQuery({
+    queryKey: ["holdings"],
+    queryFn: fetchHoldings,
+    initialData: [],
+    refetchInterval: 15000
+  });
+
+  const { data: prices = [] } = useQuery({
+    queryKey: ["prices"],
+    queryFn: fetchPrices,
+    initialData: markets.map((m) => ({ symbol: m.symbol, price: m.price })),
+    refetchInterval: 15000
+  });
+
+  const priceMap = prices.reduce<Record<string, number>>((acc, p) => {
+    acc[p.symbol.toUpperCase()] = p.price;
+    return acc;
+  }, {});
+
+  const data = holdings
+    .map((h) => {
+      const price = priceMap[h.asset.toUpperCase()] ?? 0;
+      return { symbol: h.asset.toUpperCase(), value: Number(h.amount) * price };
+    })
+    .filter((m) => m.value > 5);
 
   const donut = data.map((m, idx) => ({
     name: m.symbol,

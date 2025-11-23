@@ -77,15 +77,6 @@ export function TradesTable({
   const currentPage = Math.min(page, totalPages);
   const tradesPage = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-        if (!res.ok) throw new Error("Failed to delete trade");
-    },
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: ["trades"] });
-      toast.success("Trade removed");
-    },
-    onError: (err: any) => toast.error(err.message)
-  });
-
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
@@ -166,6 +157,15 @@ export function TradesTable({
                   <p className="text-foreground">
                     {new Date(t.executedAt).toLocaleString()}
                   </p>
+                </div>
+                <div className="col-span-2 flex justify-end">
+                  <button
+                    className="text-destructive"
+                    onClick={() => deleteMutation.mutate(t.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    Remove
+                  </button>
                 </div>
               </div>
             </div>

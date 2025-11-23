@@ -10,17 +10,18 @@ interface AssetSnapshot {
   value: number;
 }
 
-const palette = [
-  "#f87171", // red
-  "#60a5fa", // blue
-  "#34d399", // green
-  "#facc15", // yellow
-  "#f472b6", // pink
-  "#9ca3af", // gray
-  "#fb923c", // orange/amber
-  "#22d3ee", // cyan
-  "#a78bfa"  // indigo/violet
-];
+const tokens = ["red", "blue", "green", "yellow", "pink", "gray", "amber", "cyan", "violet"];
+const tokenHex: Record<string, string> = {
+  red: "#f87171",
+  blue: "#60a5fa",
+  green: "#34d399",
+  yellow: "#facc15",
+  pink: "#f472b6",
+  gray: "#9ca3af",
+  amber: "#fb923c",
+  cyan: "#22d3ee",
+  violet: "#a78bfa"
+};
 
 interface Holding {
   asset: string;
@@ -74,7 +75,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
   const donut = data.map((m, idx) => ({
     name: m.symbol,
     value: m.value,
-    color: palette[idx % palette.length]
+    color: tokens[idx % tokens.length]
   }));
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
@@ -87,14 +88,15 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
           <span className="text-xs text-muted-foreground">Your held assets</span>
         </div>
-        <div className="mt-4 h-80 md:h-96 flex items-end gap-3 overflow-x-auto pb-4">
+        <div className="mt-4 h-80 md:h-96 flex flex-wrap items-end gap-3 pb-4">
           {data.map((item, idx) => {
             const heightPx = Math.max((item.value / maxValue) * maxBarHeight, 12);
-            const color = palette[idx % palette.length];
+            const token = tokens[idx % tokens.length];
+            const color = tokenHex[token] || token;
             return (
               <div
                 key={item.symbol}
-                className="flex min-w-[48px] flex-1 flex-col items-center text-[11px] text-muted-foreground"
+                className="flex min-w-[64px] basis-[45%] flex-1 flex-col items-center text-[11px] text-muted-foreground sm:basis-[30%] md:basis-[20%]"
                 title={`${item.symbol}: ${formatCurrency(item.value)}`}
               >
                 <span className="mb-1 font-semibold text-card-foreground">

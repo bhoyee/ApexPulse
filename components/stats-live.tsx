@@ -7,6 +7,7 @@ interface Holding {
   asset: string;
   amount: number;
   avgBuyPrice: number;
+  createdAt?: string;
 }
 
 interface Price {
@@ -83,8 +84,8 @@ export function StatsLive({
     0
   );
 
-  const totalInvested = trades.reduce(
-    (sum, t) => sum + Number(t.quantity) * Number(t.price),
+  const totalInvested = holdings.reduce(
+    (sum, h) => sum + Number(h.amount) * Number(h.avgBuyPrice),
     0
   );
 
@@ -92,11 +93,14 @@ export function StatsLive({
 
   const now = Date.now();
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-  const trades30d = trades.filter((t) => new Date(t.executedAt).getTime() >= thirtyDaysAgo);
+  const holdings30d = holdings.filter((h) => {
+    const t = h.createdAt ? new Date(h.createdAt).getTime() : 0;
+    return t >= thirtyDaysAgo;
+  });
 
-  const realizedPnl30d = trades30d.reduce((sum, t) => {
-    const cost = Number(t.quantity) * Number(t.price);
-    const current = Number(t.quantity) * (priceMap[t.symbol.toUpperCase()]?.price ?? 0);
+  const realizedPnl30d = holdings30d.reduce((sum, h) => {
+    const cost = Number(h.amount) * Number(h.avgBuyPrice);
+    const current = Number(h.amount) * (priceMap[h.asset.toUpperCase()]?.price ?? 0);
     return sum + (current - cost);
   }, 0);
 

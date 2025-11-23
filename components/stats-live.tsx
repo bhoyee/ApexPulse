@@ -84,8 +84,9 @@ export function StatsLive({
     0
   );
 
-  const totalInvested = holdings.reduce(
-    (sum, h) => sum + Number(h.amount) * Number(h.avgBuyPrice),
+  // Total invested should match trade history (sum of Investment USD)
+  const totalInvested = trades.reduce(
+    (sum, t) => sum + Number(t.quantity) * Number(t.price),
     0
   );
 

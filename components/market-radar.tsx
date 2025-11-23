@@ -92,7 +92,6 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           index="name"
           colors={colors}
           valueFormatter={(n) => formatCurrency(Number(n))}
-          showLegend={true}
         />
       </div>
     </div>

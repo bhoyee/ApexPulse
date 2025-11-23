@@ -2,16 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, context: any) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = context?.params || {};
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }

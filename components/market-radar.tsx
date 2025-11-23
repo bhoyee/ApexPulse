@@ -1,6 +1,18 @@
 "use client";
 
+import { BarChart, DonutChart } from "@tremor/react";
+import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from "../lib/utils";
+
+interface Holding {
+  asset: string;
+  amount: number;
+}
+
+interface Price {
+  symbol: string;
+  price: number;
+}
 
 interface AssetSnapshot {
   symbol: string;
@@ -8,25 +20,50 @@ interface AssetSnapshot {
   value: number;
 }
 
-const palette = [
-  "#f87171", // red
-  "#60a5fa", // blue
-  "#34d399", // green
-  "#facc15", // yellow
-  "#f472b6", // pink
-  "#9ca3af", // gray
-  "#fb923c", // orange/amber
-  "#22d3ee", // cyan
-  "#a78bfa" // violet
-];
+const colors = ["red", "blue", "green", "yellow", "pink", "gray", "amber", "cyan", "violet"];
+
+async function fetchHoldings(): Promise<Holding[]> {
+  const res = await fetch("/api/holdings");
+  if (!res.ok) throw new Error("Failed to load holdings");
+  return res.json();
+}
+
+async function fetchPrices(): Promise<Price[]> {
+  const res = await fetch("/api/prices");
+  if (!res.ok) throw new Error("Failed to load prices");
+  const data = await res.json();
+  return data.markets ?? [];
+}
 
 export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
-  const data = (markets || [])
-    .map((m) => ({ symbol: m.symbol.toUpperCase(), value: Number(m.value ?? m.price ?? 0) }))
+  const { data: holdings = [] } = useQuery({
+    queryKey: ["holdings"],
+    queryFn: fetchHoldings,
+    initialData: [],
+    refetchInterval: 15000
+  });
+
+  const { data: prices = [] } = useQuery({
+    queryKey: ["prices"],
+    queryFn: fetchPrices,
+    initialData: markets.map((m) => ({ symbol: m.symbol, price: m.price })),
+    refetchInterval: 15000
+  });
+
+  const priceMap = prices.reduce<Record<string, number>>((acc, p) => {
+    acc[p.symbol.toUpperCase()] = p.price;
+    return acc;
+  }, {});
+
+  const data = holdings
+    .map((h) => {
+      const price = priceMap[h.asset.toUpperCase()] ?? 0;
+      return { symbol: h.asset.toUpperCase(), value: Number(h.amount) * price };
+    })
     .filter((d) => d.value > 5);
 
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const total = data.reduce((s, d) => s + d.value, 0);
+  const barData = data.map((d) => ({ symbol: d.symbol, value: d.value }));
+  const donutData = data.map((d) => ({ name: d.symbol, value: d.value }));
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -35,68 +72,29 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
           <span className="text-xs text-muted-foreground">Holdings &gt; $5</span>
         </div>
-        <div className="mt-4 h-80 md:h-96 overflow-x-auto">
-          <div className="flex items-end gap-3 min-w-full">
-            {data.map((item, idx) => {
-              const heightPct = Math.max((item.value / maxValue) * 100, 5);
-              const color = palette[idx % palette.length];
-              return (
-                <div
-                  key={item.symbol}
-                  className="flex w-14 flex-col items-center text-[10px] text-muted-foreground"
-                  title={`${item.symbol}: ${formatCurrency(item.value)}`}
-                >
-                  <span className="mb-1 text-center text-[11px] font-semibold text-card-foreground">
-                    {formatCurrency(item.value)}
-                  </span>
-                  <div
-                    className="w-full rounded-t-md"
-                    style={{ height: `${heightPct}%`, backgroundColor: color }}
-                  />
-                  <span className="mt-1 text-card-foreground text-[11px]">{item.symbol}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <BarChart
+          className="mt-4 h-80 md:h-96"
+          data={barData}
+          index="symbol"
+          categories={["value"]}
+          colors={colors}
+          valueFormatter={(n) => formatCurrency(Number(n))}
+          yAxisWidth={64}
+        />
       </div>
-
       <div className="chart-card bg-card border border-border text-card-foreground">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-muted-foreground">Dominance</h3>
           <span className="text-xs text-muted-foreground">Share by value</span>
         </div>
-        <div className="mt-4 flex flex-col gap-3">
-          <div className="h-6 w-full overflow-hidden rounded-full border border-border bg-muted/30">
-            <div className="flex h-full w-full">
-              {data.map((item, idx) => {
-                const pct = total ? (item.value / total) * 100 : 0;
-                const color = palette[idx % palette.length];
-                return (
-                  <div
-                    key={item.symbol}
-                    style={{ width: `${pct}%`, backgroundColor: color }}
-                    title={`${item.symbol}: ${pct.toFixed(1)}%`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-            {data.map((item, idx) => {
-              const pct = total ? ((item.value / total) * 100).toFixed(1) : "0.0";
-              const color = palette[idx % palette.length];
-              return (
-                <div key={item.symbol} className="flex items-center gap-2">
-                  <span className="block h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
-                  <span className="text-card-foreground">
-                    {item.symbol} — {pct}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <DonutChart
+          className="mt-3 h-80 text-xs"
+          data={donutData}
+          category="value"
+          index="name"
+          colors={colors}
+          valueFormatter={(n) => formatCurrency(Number(n))}
+        />
       </div>
     </div>
   );

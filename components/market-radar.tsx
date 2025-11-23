@@ -31,7 +31,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
   }));
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const maxBarHeight = 220; // px
+  const maxBarHeight = 320; // px for better fill
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -40,14 +40,14 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
           <span className="text-xs text-muted-foreground">Your held assets</span>
         </div>
-        <div className="mt-4 h-64 flex items-end gap-3 overflow-x-auto pb-4">
+        <div className="mt-4 h-80 md:h-96 flex items-end gap-3 overflow-x-auto pb-4">
           {data.map((item, idx) => {
             const heightPx = Math.max((item.value / maxValue) * maxBarHeight, 12);
             const color = palette[idx % palette.length];
             return (
               <div
                 key={item.symbol}
-                className="flex flex-col items-center text-xs text-muted-foreground"
+                className="flex min-w-[48px] flex-1 flex-col items-center text-[11px] text-muted-foreground"
                 title={`${item.symbol}: ${formatCurrency(item.value)}`}
               >
                 <span className="mb-1 font-semibold text-card-foreground">

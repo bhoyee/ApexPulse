@@ -76,6 +76,7 @@ export function HoldingsTable({
       if (!asset || !qty || !buy) {
         throw new Error("Fill symbol, qty, and buy price/investment");
       }
+      // create holding
       const res = await fetch("/api/holdings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,7 +89,19 @@ export function HoldingsTable({
         })
       });
       if (!res.ok) throw new Error("Failed to add holding");
-      return res.json();
+      const holding = await res.json();
+      // also create a BUY trade for history
+      await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: asset.toUpperCase(),
+          quantity: qty,
+          price: buy,
+          executedAt: timestamp || undefined
+        })
+      });
+      return holding;
     },
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["holdings"] });

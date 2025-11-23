@@ -17,7 +17,8 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
     value: m.value
   }));
 
-  const colors = ["red", "blue", "green", "yellow", "pink", "gray", "orange", "indigo", "lime"];
+  // Use Tremor-supported color tokens only
+  const colors = ["red", "blue", "green", "yellow", "pink", "gray", "amber", "cyan", "indigo"];
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
 
@@ -28,22 +29,21 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
           <span className="text-xs text-muted-foreground">Your held assets</span>
         </div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 h-64 flex items-end gap-3 overflow-x-auto pb-4">
           {data.map((item, idx) => {
-            const pct = Math.max((item.value / maxValue) * 100, 4);
+            const heightPct = Math.max((item.value / maxValue) * 100, 6);
             const color = colors[idx % colors.length];
             return (
-              <div key={item.symbol} className="text-xs text-muted-foreground">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-card-foreground">{item.symbol}</span>
-                  <span>{formatCurrency(item.value)}</span>
-                </div>
-                <div className="mt-1 h-2 rounded-full bg-border">
-                  <div
-                    className="h-2 rounded-full"
-                    style={{ width: `${pct}%`, backgroundColor: color }}
-                  />
-                </div>
+              <div key={item.symbol} className="flex flex-col items-center text-xs text-muted-foreground">
+                <span className="mb-1 font-semibold text-card-foreground">
+                  {formatCurrency(item.value)}
+                </span>
+                <div
+                  className="w-10 rounded-t-md"
+                  style={{ height: `${heightPct}%`, backgroundColor: `var(--${color}-500, ${color})` }}
+                  title={`${item.symbol}: ${formatCurrency(item.value)}`}
+                />
+                <span className="mt-1 text-card-foreground">{item.symbol}</span>
               </div>
             );
           })}

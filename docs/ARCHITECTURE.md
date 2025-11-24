@@ -6,7 +6,7 @@ flowchart TD
     API --> Auth[NextAuth v5 + Prisma]
     API --> Holdings[Holdings/Signals/Settings]
     API --> Binance[Binance REST + WebSocket]
-    API --> AI[Grok -> OpenAI fallback]
+    API --> AI[OpenAI -> DeepSeek fallback]
     API --> Email[Resend + React Email]
     Holdings --> DB[(PostgreSQL via Prisma)]
     Auth --> DB

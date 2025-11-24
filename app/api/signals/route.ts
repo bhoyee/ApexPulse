@@ -25,12 +25,14 @@ export async function GET(req: Request) {
   const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
   const signals = await generateSwingSignals(markets);
 
+  await prisma.signal.deleteMany({ where: { userId: session.user.id } });
   await prisma.signal.createMany({
     data: signals.map((s) => ({
       userId: session.user.id,
       symbol: s.symbol,
       summary: s.thesis,
       confidence: s.confidence,
+      entryPrice: s.entryPrice ?? null,
       source: s.source.toUpperCase() as any,
       stopLoss: s.stopLoss,
       takeProfit: s.takeProfit

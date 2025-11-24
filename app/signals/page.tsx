@@ -18,7 +18,8 @@ export default async function SignalsPage() {
 
   const signalsSafe = signals.map((s) => ({
     ...s,
-    createdAt: s.createdAt.toISOString()
+    createdAt: s.createdAt.toISOString(),
+    entryPrice: (s as any).entryPrice ? Number((s as any).entryPrice) : null
   }));
 
   return (
@@ -29,7 +30,7 @@ export default async function SignalsPage() {
           <p className="text-xs uppercase tracking-[0.3em] text-primary">AI signals</p>
           <h1 className="text-3xl font-bold">Swing calls</h1>
           <p className="text-muted-foreground">
-            Grok primary with OpenAI fallback, cached per user. Refresh to generate new calls.
+            OpenAI primary with DeepSeek fallback, cached per user. Refresh to generate new calls.
           </p>
         </div>
         <SignalList initial={signalsSafe as any} />

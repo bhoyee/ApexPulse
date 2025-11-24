@@ -12,6 +12,7 @@ interface Signal {
   summary: string;
   confidence: number;
   source: string;
+  entryPrice?: number;
   stopLoss?: number;
   takeProfit?: number;
   createdAt: string;
@@ -31,7 +32,7 @@ export function SignalList({ initial }: { initial: Signal[] }) {
   });
 
   const refresh = async () => {
-    toast("Generating fresh swings with Grok/OpenAI…");
+    toast("Generating fresh swings with OpenAI (DeepSeek fallback)…");
     await fetchSignals(true);
     await refetch();
   };
@@ -42,7 +43,7 @@ export function SignalList({ initial }: { initial: Signal[] }) {
         <div>
           <p className="text-sm font-semibold text-muted-foreground">AI Swing Signals</p>
           <p className="text-xs text-muted-foreground">
-            Grok primary, OpenAI fallback — stored locally for compliance.
+            OpenAI primary, DeepSeek fallback — stored locally for compliance.
           </p>
         </div>
         <Button variant="outline" size="sm" disabled={isFetching} onClick={refresh}>
@@ -63,6 +64,12 @@ export function SignalList({ initial }: { initial: Signal[] }) {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <BadgeDollarSign className="h-4 w-4" />
                 <span>Conf {s.confidence}%</span>
+                <span>
+                  Entry{" "}
+                  {s.entryPrice !== undefined && s.entryPrice !== null
+                    ? `$${Number(s.entryPrice).toFixed(4)}`
+                    : "—"}
+                </span>
                 <span>SL {s.stopLoss ?? "—"}%</span>
                 <span>TP {s.takeProfit ?? "—"}%</span>
               </div>

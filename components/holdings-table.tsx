@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -367,7 +367,7 @@ export function HoldingsTable({
             Prev
           </button>
           <span>
-            Page {currentPage} / {totalPages} • {filtered.length} assets
+            Page {currentPage} / {totalPages} | {filtered.length} assets
           </span>
           <button
             className="rounded-md border border-white/10 px-2 py-1 disabled:opacity-50"
@@ -381,3 +381,4 @@ export function HoldingsTable({
     </div>
   );
 }
+

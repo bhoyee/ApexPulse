@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -149,7 +149,7 @@ export function TradesTable({
                 <div>
                   <p>Present value</p>
                   <p className="text-foreground">
-                    {presentValue ? formatCurrency(presentValue) : "—"}
+                    {presentValue ? formatCurrency(presentValue) : "-"}
                   </p>
                 </div>
                 <div>
@@ -208,7 +208,7 @@ export function TradesTable({
                     {currentPrice ? formatCurrency(currentPrice) : "—"}
                   </td>
                   <td className="px-3 py-2 text-right text-sm">
-                    {presentValue ? formatCurrency(presentValue) : "—"}
+                    {presentValue ? formatCurrency(presentValue) : "-"}
                   </td>
                   <td className={`px-3 py-2 text-right text-sm ${pnlClass}`}>
                     {formatCurrency(pnl)}
@@ -257,7 +257,7 @@ export function TradesTable({
               Prev
             </button>
             <span>
-              Page {currentPage} / {totalPages} • {filtered.length} trades
+              Page {currentPage} / {totalPages} â€¢ {filtered.length} trades
             </span>
             <button
               className="rounded-md border border-white/10 px-2 py-1 disabled:opacity-50"
@@ -272,3 +272,4 @@ export function TradesTable({
     </div>
   );
 }
+

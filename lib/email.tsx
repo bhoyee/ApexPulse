@@ -79,7 +79,7 @@ export function DailyEmail({ userName, signals, holdings }: DailyProps) {
             ))}
           </Section>
           <Text style={{ color: "#94a3b8", marginTop: "24px" }}>
-            Powered by Grok with OpenAI fallback — remain in control, self-hosted.
+            Powered by OpenAI with DeepSeek fallback - remain in control, self-hosted.
           </Text>
         </Container>
       </Body>
@@ -92,15 +92,17 @@ export async function sendDailyEmail(props: {
   userName?: string;
   signals: SwingSignal[];
   holdings: { asset: string; amount: number; value: number }[];
+  from?: string;
 }) {
   const client = getResend();
-  if (!client || !process.env.RESEND_FROM) {
+  const fromAddr = props.from || process.env.RESEND_FROM;
+  if (!client || !fromAddr) {
     return { skipped: true };
   }
 
   const html = render(<DailyEmail {...props} />);
   await client.emails.send({
-    from: process.env.RESEND_FROM!,
+    from: fromAddr,
     to: props.to,
     subject: "ApexPulse | AI Swing Signals",
     html

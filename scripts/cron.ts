@@ -141,12 +141,15 @@ async function runDaily() {
 
     const signals = await generateSwingSignals(markets);
 
+    // keep only latest batch per user
+    await prisma.signal.deleteMany({ where: { userId: user.id } });
     await prisma.signal.createMany({
       data: signals.map((s) => ({
         userId: user.id,
         symbol: s.symbol,
         summary: s.thesis,
         confidence: s.confidence,
+        entryPrice: s.entryPrice ?? null,
         source: s.source.toUpperCase() as any,
         stopLoss: s.stopLoss,
         takeProfit: s.takeProfit
@@ -154,10 +157,12 @@ async function runDaily() {
     });
 
     const recipient = user.apiSetting?.dailyEmailTo || user.email;
+    const fromAddr = user.apiSetting?.resendFrom || process.env.RESEND_FROM;
     if (recipient && process.env.RESEND_API_KEY && process.env.RESEND_FROM) {
       try {
         await sendDailyEmail({
           to: recipient,
+          from: fromAddr,
           userName: user.name ?? undefined,
           signals,
           holdings: holdingsValue
@@ -199,10 +204,23 @@ async function runDaily() {
   }
 }
 
-runDaily()
-  .catch((error) => {
+function msUntilNext13UTC() {
+  const now = new Date();
+  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 13, 0, 0, 0));
+  if (target.getTime() <= now.getTime()) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+  return target.getTime() - now.getTime();
+}
+
+async function loop() {
+  try {
+    await runDaily();
+  } catch (error) {
     console.error("Cron failure", error);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  }
+  setTimeout(loop, msUntilNext13UTC());
+}
+
+// Kick off: wait until next 13:00 UTC, but also run once at start so you have data now.
+loop();

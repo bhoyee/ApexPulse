@@ -11,9 +11,10 @@ import { toast } from "sonner";
 const schema = z.object({
   binanceApiKey: z.string().optional(),
   binanceApiSecret: z.string().optional(),
-  grokApiKey: z.string().optional(),
   openaiApiKey: z.string().optional(),
+  deepseekApiKey: z.string().optional(),
   resendApiKey: z.string().optional(),
+  resendFrom: z.string().email().optional(),
   dailyEmailTo: z.string().email().optional()
 });
 
@@ -58,16 +59,20 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="grokApiKey">Grok API Key</Label>
-          <Input id="grokApiKey" {...form.register("grokApiKey")} placeholder="xai-..." />
+          <Label htmlFor="openaiApiKey">OpenAI API Key (primary)</Label>
+          <Input id="openaiApiKey" {...form.register("openaiApiKey")} placeholder="sk-..." />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="openaiApiKey">OpenAI API Key (fallback)</Label>
-          <Input id="openaiApiKey" {...form.register("openaiApiKey")} placeholder="sk-..." />
+          <Label htmlFor="deepseekApiKey">DeepSeek API Key (fallback)</Label>
+          <Input id="deepseekApiKey" {...form.register("deepseekApiKey")} placeholder="sk-..." />
         </div>
         <div className="space-y-2">
           <Label htmlFor="resendApiKey">Resend API Key</Label>
           <Input id="resendApiKey" {...form.register("resendApiKey")} placeholder="re_" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="resendFrom">Resend From Email</Label>
+          <Input id="resendFrom" type="email" {...form.register("resendFrom")} placeholder="no-reply@yourdomain.com" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="dailyEmailTo">Daily Signal Email</Label>

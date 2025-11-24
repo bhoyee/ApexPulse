@@ -25,9 +25,11 @@ export async function PUT(req: Request) {
   const data = {
     binanceApiKey: body.binanceApiKey || null,
     binanceApiSecret: body.binanceApiSecret || null,
-    grokApiKey: body.grokApiKey || null,
+    grokApiKey: null,
     openaiApiKey: body.openaiApiKey || null,
+    deepseekApiKey: body.deepseekApiKey || null,
     resendApiKey: body.resendApiKey || null,
+    resendFrom: body.resendFrom || null,
     dailyEmailTo: body.dailyEmailTo || null
   };
   const updated = await prisma.apiSetting.upsert({

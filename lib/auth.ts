@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { z } from "zod";
 
+export const runtime = "nodejs"; // or 'edge'
+
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6)

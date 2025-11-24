@@ -98,7 +98,7 @@ export default async function DashboardPage() {
                 The ultimate self-hosted crypto HQ
               </h1>
               <p className="text-sm text-muted-foreground">
-                Binance sync, AI swing signals, Tremor dashboards, dark-mode perfection. Grok primary with GPT fallback.
+                Binance sync, AI swing signals, Tremor dashboards, dark-mode perfection. OpenAI primary with DeepSeek fallback.
               </p>
             </div>
             <div className="flex gap-3">

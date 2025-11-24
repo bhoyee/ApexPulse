@@ -2,7 +2,7 @@
 
 ![ApexPulse](public/logo.svg)
 
-ApexPulse is a production-ready crypto command center: Next.js 15 (App Router), Tailwind + shadcn/ui, Tremor 3.0 charts, TanStack Query v5, Prisma + Postgres, NextAuth v5, Grok primary with OpenAI fallback, Resend daily briefs, and full Docker support from day one.
+ApexPulse is a production-ready crypto command center: Next.js 15 (App Router), Tailwind + shadcn/ui, Tremor 3.0 charts, TanStack Query v5, Prisma + Postgres, NextAuth v5, OpenAI primary with DeepSeek fallback, Resend daily briefs, and full Docker support from day one.
 
 ## Tech
 - Next.js 15 (App Router) + TypeScript (strict)
@@ -10,7 +10,7 @@ ApexPulse is a production-ready crypto command center: Next.js 15 (App Router), 
 - TanStack Query v5, React Hook Form + Zod, next-themes
 - Prisma ORM + PostgreSQL, NextAuth v5 (Credentials + Google)
 - Binance Spot API (REST + WebSocket ready hooks)
-- Grok API (primary) -> GPT-4o-mini fallback, Resend + React Email
+- OpenAI (primary) -> DeepSeek fallback, Resend + React Email
 - Docker & docker-compose (multi-stage, small final image), optional Redis
 
 ### Default Ports (avoids 3000/3300/5433/15432)
@@ -57,8 +57,8 @@ Generate Prisma client if needed: `npx prisma generate`. Seed sample data: `npm 
 
 ## Providers
 - **Binance:** `BINANCE_API_KEY`, `BINANCE_API_SECRET` for live balances.
-- **Grok (primary):** `GROK_API_KEY` -> `https://api.x.ai/v1/chat/completions`.
-- **OpenAI fallback:** `OPENAI_API_KEY` -> model `gpt-4o-mini`.
+- **OpenAI (primary):** `OPENAI_API_KEY` -> model `gpt-4o-mini`.
+- **DeepSeek (fallback):** `DEEPSEEK_API_KEY` -> model `deepseek-chat`.
 - **Resend:** `RESEND_API_KEY`, `RESEND_FROM`. Daily brief uses React Email template.
 - **Binance refresh:** `BINANCE_MIN_VALUE_USD` (default 0 to include all balances), `CRON_INTERVAL_SECONDS` (default 300s ~5m auto-sync).
 
@@ -66,7 +66,7 @@ Generate Prisma client if needed: `npx prisma generate`. Seed sample data: `npm 
 - A dedicated `cron` service in `docker-compose.yml` runs `npm run cron` (TSX + Prisma) to:
   - Pull latest market snapshot from Binance
   - Sync holdings (auto) from Binance before signals
-  - Generate five 24-72h swing signals (Grok -> OpenAI -> deterministic fallback)
+- Generate five 24-72h swing signals (OpenAI -> DeepSeek -> deterministic fallback)
   - Persist signals to Postgres
   - Email the daily brief via Resend (if configured)
 - Manual trigger: `POST /api/cron/daily` (authorized users only).
@@ -104,7 +104,7 @@ docker compose exec apexpulse node prisma/seed.js
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - `BINANCE_API_KEY`, `BINANCE_API_SECRET`
 - `BINANCE_MIN_VALUE_USD`, `CRON_INTERVAL_SECONDS`
-- `GROK_API_KEY`, `OPENAI_API_KEY`
+- `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`
 - `RESEND_API_KEY`, `RESEND_FROM`
 - `DAILY_EMAIL_TO` (per-user configurable in Settings UI)
 - (optional) `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_PORTAL_RETURN_URL`, `STRIPE_TEST_CUSTOMER_ID`, `STRIPE_CHECKOUT_PRO_URL`, `STRIPE_CHECKOUT_ENTERPRISE_URL`
@@ -116,7 +116,7 @@ flowchart TD
     API --> Auth[NextAuth v5<br/>Prisma Adapter]
     API --> Holdings[Holdings/Signals/Settings APIs]
     API --> Binance[Binance REST + WebSocket]
-    API --> AI[Grok -> OpenAI]
+    API --> AI[OpenAI -> DeepSeek]
     API --> Email[Resend + React Email]
     Holdings --> DB[(PostgreSQL via Prisma)]
     Auth --> DB

@@ -99,7 +99,9 @@ model ApiSetting {
   binanceApiSecret  String?
   grokApiKey        String?
   openaiApiKey      String?
+  deepseekApiKey    String?
   resendApiKey      String?
+  resendFrom        String?
   dailyEmailTo      String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -137,6 +139,7 @@ model Signal {
   symbol      String
   summary     String
   confidence  Int
+  entryPrice  Decimal?    @db.Decimal(18, 8)
   stopLoss    Float?
   takeProfit  Float?
   source      SignalSource @default(GROK)
@@ -176,5 +179,6 @@ enum SyncJobStatus {
 enum SignalSource {
   GROK
   OPENAI
+  DEEPSEEK
   FALLBACK
 }

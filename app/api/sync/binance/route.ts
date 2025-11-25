@@ -7,14 +7,29 @@ const MIN_VALUE_USDT =
   Number(process.env.BINANCE_MIN_VALUE_USD ?? "5") || 5;
 const STABLES = new Set(["USDT", "USDC", "BUSD", "FDUSD", "TUSD"]);
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
+function isBearerAuthorized(req: Request) {
+  const token = process.env.SYNC_TOKEN;
+  const header = req.headers.get("authorization") || "";
+  if (!token) return false;
+  return header === `Bearer ${token}`;
+}
+
+export async function POST(req: Request) {
+  let userId: string | null = null;
+  if (isBearerAuthorized(req)) {
+    // allow GitHub Actions / external scheduler
+    const firstUser = await prisma.user.findFirst({ select: { id: true } });
+    userId = firstUser?.id ?? null;
+  } else {
+    const session = await auth();
+    userId = session?.user?.id ?? null;
+  }
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const settings = await prisma.apiSetting.findUnique({
-    where: { userId: session.user.id }
+    where: { userId }
   });
 
   if (!settings?.binanceApiKey || !settings?.binanceApiSecret) {
@@ -93,7 +108,7 @@ export async function POST() {
   await Promise.all(
     filteredBalances.map(async (balance) => {
       const existing = await prisma.holding.findFirst({
-        where: { userId: session.user.id, asset: balance.asset }
+        where: { userId, asset: balance.asset }
       });
       const avgBuyPrice = existing ? existing.avgBuyPrice : 0;
       if (existing) {
@@ -115,7 +130,7 @@ export async function POST() {
   );
 
   const updatedHoldings = await prisma.holding.findMany({
-    where: { userId: session.user.id }
+    where: { userId }
   });
 
   return NextResponse.json({

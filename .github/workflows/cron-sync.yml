@@ -1,0 +1,20 @@
+name: Sync Binance and Signals
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # holdings/trades every 10 minutes
+    - cron: "0 13 * * *"     # signals/email daily at 13:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  call-endpoints:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Binance holdings/trades
+        run: |
+          curl -X POST https://arbitrary-vanessa-elevatelab-5a80a641.koyeb.app/api/sync/binance \
+            -H "Authorization: Bearer ${{ secrets.SYNC_TOKEN }}"
+      - name: Generate daily signals + email
+        run: |
+          curl -X POST https://arbitrary-vanessa-elevatelab-5a80a641.koyeb.app/api/cron/daily \
+            -H "Authorization: Bearer ${{ secrets.SYNC_TOKEN }}"

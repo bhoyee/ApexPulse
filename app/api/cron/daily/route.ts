@@ -5,14 +5,28 @@ import { generateSwingSignals } from "../../../../lib/ai";
 import { getMarketTickers } from "../../../../lib/binance";
 import { sendDailyEmail } from "../../../../lib/email";
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
+function isBearerAuthorized(req: Request) {
+  const token = process.env.SYNC_TOKEN;
+  const header = req.headers.get("authorization") || "";
+  if (!token) return false;
+  return header === `Bearer ${token}`;
+}
+
+export async function POST(req: Request) {
+  let userId: string | null = null;
+  if (isBearerAuthorized(req)) {
+    const firstUser = await prisma.user.findFirst({ select: { id: true } });
+    userId = firstUser?.id ?? null;
+  } else {
+    const session = await auth();
+    userId = session?.user?.id ?? null;
+  }
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     include: { apiSetting: true, holdings: true }
   });
 

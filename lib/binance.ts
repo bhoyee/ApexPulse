@@ -217,7 +217,8 @@ async function getCoingeckoPrices(symbols: string[]) {
 export async function getBinanceTrades(
   symbols: string[],
   apiKey?: string,
-  apiSecret?: string
+  apiSecret?: string,
+  startTimes?: Record<string, number>
 ) {
   const key = apiKey || process.env.BINANCE_API_KEY;
   const secret = apiSecret || process.env.BINANCE_API_SECRET;
@@ -236,7 +237,10 @@ export async function getBinanceTrades(
   for (const sym of symbols) {
     const pair = `${sym.toUpperCase()}USDT`;
     const timestamp = Date.now();
-    const query = `symbol=${pair}&limit=100&timestamp=${timestamp}`;
+    const start = startTimes?.[sym.toUpperCase()];
+    const queryParts = [`symbol=${pair}`, `limit=1000`, `timestamp=${timestamp}`];
+    if (start) queryParts.push(`startTime=${start}`);
+    const query = queryParts.join("&");
     const signature = signParams(query, secret);
     const url = `${BINANCE_API}/api/v3/myTrades?${query}&signature=${signature}`;
 

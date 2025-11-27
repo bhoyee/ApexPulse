@@ -8,8 +8,7 @@ import {
 } from "../../../../lib/binance";
 import { TransactionType } from "@prisma/client";
 
-const MIN_VALUE_USDT =
-  Number(process.env.BINANCE_MIN_VALUE_USD ?? "5") || 5;
+const MIN_VALUE_USDT = Number(process.env.BINANCE_MIN_VALUE_USD ?? "0") || 0;
 const STABLES = new Set(["USDT", "USDC", "BUSD", "FDUSD", "TUSD"]);
 
 function isBearerAuthorized(req: Request) {
@@ -65,6 +64,7 @@ export async function POST(req: Request) {
   }, {});
 
   const filteredBalances: typeof tradables = [];
+  const balancesToPersist: typeof tradables = [];
   const skippedDetails: Array<{
     asset: string;
     amount: number;
@@ -76,19 +76,20 @@ export async function POST(req: Request) {
   for (const balance of tradables) {
     const symbol = balance.asset.toUpperCase();
     if (STABLES.has(symbol)) {
-      if (balance.amount >= MIN_VALUE_USDT) {
-        filteredBalances.push(balance);
-      } else {
+      // Always persist the quantity; stablecoins get value at 1
+      balancesToPersist.push(balance);
+      if (balance.amount >= MIN_VALUE_USDT) filteredBalances.push(balance);
+      else
         skippedDetails.push({
           asset: symbol,
           amount: balance.amount,
           reason: `below ${MIN_VALUE_USDT} ${symbol}`
         });
-      }
       continue;
     }
     const price = priceMap[symbol];
     if (!price || Number.isNaN(price)) {
+      balancesToPersist.push(balance); // keep qty even if price missing
       skippedDetails.push({
         asset: symbol,
         amount: balance.amount,
@@ -97,9 +98,9 @@ export async function POST(req: Request) {
       continue;
     }
     const usdValue = price * balance.amount;
-    if (usdValue >= MIN_VALUE_USDT) {
-      filteredBalances.push(balance);
-    } else {
+    balancesToPersist.push(balance);
+    if (usdValue >= MIN_VALUE_USDT) filteredBalances.push(balance);
+    else
       skippedDetails.push({
         asset: symbol,
         amount: balance.amount,
@@ -107,11 +108,10 @@ export async function POST(req: Request) {
         usdValue,
         reason: `below ${MIN_VALUE_USDT} USD`
       });
-    }
   }
 
   await Promise.all(
-    filteredBalances.map(async (balance) => {
+    balancesToPersist.map(async (balance) => {
       const existing = await prisma.holding.findFirst({
         where: { userId, asset: balance.asset }
       });
@@ -142,7 +142,24 @@ export async function POST(req: Request) {
   try {
     const symbols = Array.from(new Set(updatedHoldings.map((h) => h.asset.toUpperCase())));
     if (symbols.length) {
-      const trades = await getBinanceTrades(symbols, settings.binanceApiKey, settings.binanceApiSecret);
+      const latestTrades = await prisma.transaction.findMany({
+        where: { userId, type: TransactionType.BUY, symbol: { in: symbols } },
+        orderBy: { executedAt: "desc" },
+        take: 200
+      });
+      const startTimes: Record<string, number> = {};
+      latestTrades.forEach((t) => {
+        if (!startTimes[t.symbol]) {
+          startTimes[t.symbol] = new Date(t.executedAt).getTime() + 1;
+        }
+      });
+
+      const trades = await getBinanceTrades(
+        symbols,
+        settings.binanceApiKey,
+        settings.binanceApiSecret,
+        startTimes
+      );
       await Promise.all(
         trades
           .filter((t) => t.isBuyer) // buys only

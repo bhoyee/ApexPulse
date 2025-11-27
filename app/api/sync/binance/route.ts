@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
-import { getBinanceBalances, getMarketTickers } from "../../../../lib/binance";
+import {
+  getBinanceBalances,
+  getMarketTickers,
+  getBinanceTrades
+} from "../../../../lib/binance";
+import { TransactionType } from "@prisma/client";
 
 const MIN_VALUE_USDT =
   Number(process.env.BINANCE_MIN_VALUE_USD ?? "5") || 5;
@@ -119,7 +124,7 @@ export async function POST(req: Request) {
       } else {
         await prisma.holding.create({
           data: {
-            userId: session.user.id,
+            userId,
             asset: balance.asset,
             amount: balance.amount,
             avgBuyPrice
@@ -132,6 +137,38 @@ export async function POST(req: Request) {
   const updatedHoldings = await prisma.holding.findMany({
     where: { userId }
   });
+
+  // Also sync recent buys into Transaction history
+  try {
+    const symbols = Array.from(new Set(updatedHoldings.map((h) => h.asset.toUpperCase())));
+    if (symbols.length) {
+      const trades = await getBinanceTrades(symbols, settings.binanceApiKey, settings.binanceApiSecret);
+      await Promise.all(
+        trades
+          .filter((t) => t.isBuyer) // buys only
+          .map((t) =>
+            prisma.transaction.upsert({
+              where: { externalId: t.id },
+              update: {},
+              create: {
+                userId,
+                holdingId: null,
+                type: TransactionType.BUY,
+                symbol: t.symbol.toUpperCase(),
+                quantity: t.qty,
+                price: t.price,
+                fee: t.commission,
+                executedAt: new Date(t.time),
+                source: "binance",
+                externalId: t.id
+              }
+            })
+          )
+      );
+    }
+  } catch (err) {
+    console.error("Trade sync failed", err);
+  }
 
   return NextResponse.json({
     holdings: updatedHoldings,

@@ -142,23 +142,10 @@ export async function POST(req: Request) {
   try {
     const symbols = Array.from(new Set(updatedHoldings.map((h) => h.asset.toUpperCase())));
     if (symbols.length) {
-      const latestTrades = await prisma.transaction.findMany({
-        where: { userId, type: TransactionType.BUY, symbol: { in: symbols } },
-        orderBy: { executedAt: "desc" },
-        take: 200
-      });
-      const startTimes: Record<string, number> = {};
-      latestTrades.forEach((t) => {
-        if (!startTimes[t.symbol]) {
-          startTimes[t.symbol] = new Date(t.executedAt).getTime() + 1;
-        }
-      });
-
       const trades = await getBinanceTrades(
         symbols,
         settings.binanceApiKey,
-        settings.binanceApiSecret,
-        startTimes
+        settings.binanceApiSecret
       );
       await Promise.all(
         trades

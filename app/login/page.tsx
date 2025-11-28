@@ -39,6 +39,10 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground">
             Use your credentials or Google to enter the command center.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Demo login: <span className="font-semibold text-foreground">founder@apexpulse.local</span> /{" "}
+            <span className="font-semibold text-foreground">apexpulse123!</span>
+          </p>
         </div>
         <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-2">

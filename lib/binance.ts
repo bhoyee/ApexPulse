@@ -224,6 +224,18 @@ export async function getBinanceTrades(
   const secret = apiSecret || process.env.BINANCE_API_SECRET;
   if (!key || !secret) return [];
 
+  // Align with server time to avoid timestamp drift issues
+  let serverTime = Date.now();
+  try {
+    const t = await fetch(`${BINANCE_API}/api/v3/time`);
+    if (t.ok) {
+      const json = (await t.json()) as { serverTime?: number };
+      if (json.serverTime) serverTime = json.serverTime;
+    }
+  } catch {
+    // ignore, fallback to local time
+  }
+
   const results: Array<{
     id: string;
     symbol: string;
@@ -236,9 +248,14 @@ export async function getBinanceTrades(
 
   for (const sym of symbols) {
     const pair = `${sym.toUpperCase()}USDT`;
-    const timestamp = Date.now();
+    const timestamp = serverTime;
     const start = startTimes?.[sym.toUpperCase()];
-    const queryParts = [`symbol=${pair}`, `limit=1000`, `timestamp=${timestamp}`];
+    const queryParts = [
+      `symbol=${pair}`,
+      `limit=1000`,
+      `recvWindow=50000`,
+      `timestamp=${timestamp}`
+    ];
     if (start) queryParts.push(`startTime=${start}`);
     const query = queryParts.join("&");
     const signature = signParams(query, secret);
@@ -248,7 +265,10 @@ export async function getBinanceTrades(
       const res = await fetch(url, {
         headers: { "X-MBX-APIKEY": key }
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.error("Trade fetch failed", pair, res.status, res.statusText);
+        continue;
+      }
       const json = (await res.json()) as Array<{
         id: number;
         qty: string;

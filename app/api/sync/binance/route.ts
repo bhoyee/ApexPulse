@@ -140,7 +140,13 @@ export async function POST(req: Request) {
 
   // Also sync recent buys into Transaction history
   try {
-    const symbols = Array.from(new Set(updatedHoldings.map((h) => h.asset.toUpperCase())));
+    const symbols = Array.from(
+      new Set(
+        updatedHoldings
+          .map((h) => h.asset.toUpperCase())
+          .filter((sym) => !STABLES.has(sym)) // skip stables to avoid USDTUSDT
+      )
+    );
     if (symbols.length) {
       const trades = await getBinanceTrades(
         symbols,

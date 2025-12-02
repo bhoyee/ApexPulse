@@ -83,6 +83,7 @@ Generate Prisma client if needed: `npx prisma generate`. Seed sample data: `npm 
 - `lib/` -- Prisma client, auth config, Binance client, AI + email utilities
 - `scripts/cron.ts` -- Daily swing signal + Resend job (used by cron service)
 - `prisma/` -- Schema + seed
+- `tests/` -- Vitest unit tests (utils, AI parsing, Binance fallbacks, sync/cron with mocks)
 
 ## Running Prisma Migrations in Docker
 ```bash
@@ -90,6 +91,11 @@ docker compose exec apexpulse npx prisma migrate deploy
 # seed (optional)
 docker compose exec apexpulse node prisma/seed.js
 ```
+
+## Testing
+- Runner: Vitest
+- Command: `npm test`
+- Coverage highlights: formatting utils, AI signal parsing, Binance ticker fallbacks, trade parsing, sync and cron endpoints via mocks, auth credential schema.
 
 ## Notes
 - Multi-stage Dockerfile keeps the final image lean and production-ready.

@@ -46,10 +46,11 @@ describe("POST /api/cron/daily", () => {
     prismaMock.user.findUnique.mockReset();
     prismaMock.user.findFirst.mockReset();
     prismaMock.signal.createMany.mockReset();
-    prismaMock.emailLog.create.mockReset();
+  prismaMock.emailLog.create.mockReset();
   binanceMock.getMarketTickers.mockReset();
   aiMock.generateSwingSignals.mockReset();
   emailMock.sendDailyEmail.mockReset();
+  process.env.RESEND_API_KEY = "test-resend";
   // default auth to null; bearer path will be used
   const authModule = vi.importMock<any>("../lib/auth");
   authModule.then((mod) => mod.auth.mockResolvedValue(null));

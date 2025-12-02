@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const runtime = "nodejs"; // or 'edge'
 
-const credentialsSchema = z.object({
+export const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6)
 });

@@ -6,7 +6,7 @@ vi.mock("next/server", () => ({
   }
 }));
 
-const prismaMock = {
+const prismaMock = vi.hoisted(() => ({
   user: { findFirst: vi.fn() },
   apiSetting: { findUnique: vi.fn() },
   holding: {
@@ -16,17 +16,17 @@ const prismaMock = {
     findMany: vi.fn()
   },
   transaction: { upsert: vi.fn() }
-};
+}));
 
 vi.mock("../lib/prisma", () => ({
   prisma: prismaMock
 }));
 
-const binanceMock = {
+const binanceMock = vi.hoisted(() => ({
   getBinanceBalances: vi.fn(),
   getMarketTickers: vi.fn(),
   getBinanceTrades: vi.fn()
-};
+}));
 
 vi.mock("../lib/binance", () => binanceMock);
 vi.mock("../lib/auth", () => ({

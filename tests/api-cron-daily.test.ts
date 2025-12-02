@@ -47,13 +47,13 @@ describe("POST /api/cron/daily", () => {
     prismaMock.user.findFirst.mockReset();
     prismaMock.signal.createMany.mockReset();
     prismaMock.emailLog.create.mockReset();
-    binanceMock.getMarketTickers.mockReset();
-    aiMock.generateSwingSignals.mockReset();
-    emailMock.sendDailyEmail.mockReset();
-    // default auth to null; bearer path will be used
-    const authMock = vi.requireMock("../lib/auth") as any;
-    authMock.auth.mockResolvedValue(null);
-  });
+  binanceMock.getMarketTickers.mockReset();
+  aiMock.generateSwingSignals.mockReset();
+  emailMock.sendDailyEmail.mockReset();
+  // default auth to null; bearer path will be used
+  const authModule = vi.importMock<any>("../lib/auth");
+  authModule.then((mod) => mod.auth.mockResolvedValue(null));
+});
 
   afterEach(() => {
     vi.unstubAllGlobals();

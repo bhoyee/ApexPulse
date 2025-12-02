@@ -9,6 +9,6 @@ describe("utils formatting", () => {
   it("formats percent with sign", () => {
     expect(formatPercent(2.5)).toBe("+2.50%");
     expect(formatPercent(-3)).toBe("-3.00%");
-    expect(formatPercent(0)).toBe("+0.00%");
+    expect(formatPercent(0)).toBe("0.00%");
   });
 });

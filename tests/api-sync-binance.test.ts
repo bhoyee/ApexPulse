@@ -94,4 +94,17 @@ describe("POST /api/sync/binance", () => {
     expect(prismaMock.transaction.upsert).toHaveBeenCalled();
     expect(res.jsonBody.synced).toBeGreaterThanOrEqual(1);
   });
+
+  it("skips when no credentials", async () => {
+    prismaMock.user.findFirst.mockResolvedValue({ id: "user1" });
+    prismaMock.apiSetting.findUnique.mockResolvedValue(null);
+    const res = (await syncPost(
+      new Request("http://localhost/api/sync/binance", {
+        method: "POST",
+        headers: { Authorization: "Bearer token123" }
+      })
+    )) as any;
+    expect(res.status).toBe(400);
+    expect(res.jsonBody.error).toContain("Binance API credentials missing");
+  });
 });

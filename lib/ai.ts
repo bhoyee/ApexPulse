@@ -91,7 +91,7 @@ function fallbackSignals(): SwingSignal[] {
   }));
 }
 
-function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
+export function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {

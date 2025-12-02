@@ -4,14 +4,9 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
-import { z } from "zod";
+import { credentialsSchema } from "./auth-schema";
 
 export const runtime = "nodejs"; // or 'edge'
-
-export const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
-});
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),

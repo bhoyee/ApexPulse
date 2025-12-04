@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { formatCurrency } from "../lib/utils";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 
 interface Trade {
   id: string;
@@ -108,6 +109,42 @@ export function TradesTable({
               setPage(1);
             }}
           />
+          <button
+            className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-xs"
+            onClick={async () => {
+              try {
+                const { jsPDF } = await import("jspdf");
+                const autoTable = (await import("jspdf-autotable")).default;
+                const doc = new jsPDF();
+                doc.text("ApexPulse Trade History", 14, 14);
+                autoTable(doc, {
+                  head: [["Symbol", "Qty", "Buy", "Current", "Present", "P/L", "Time"]],
+                  body: data.map((t) => {
+                    const qty = Number(t.quantity);
+                    const buy = Number(t.price);
+                    const current = priceMap[t.symbol.toUpperCase()] ?? 0;
+                    const present = qty * current;
+                    const pnl = present - qty * buy;
+                    return [
+                      t.symbol,
+                      qty.toFixed(2),
+                      formatCurrency(buy),
+                      current ? formatCurrency(current) : "-",
+                      present ? formatCurrency(present) : "-",
+                      formatCurrency(pnl),
+                      new Date(t.executedAt).toLocaleString()
+                    ];
+                  })
+                });
+                doc.save("apexpulse-trades.pdf");
+              } catch (err: any) {
+                toast.error("Failed to export PDF");
+              }
+            }}
+          >
+            <Download className="h-4 w-4" />
+            Export PDF
+          </button>
         </div>
       </div>
 

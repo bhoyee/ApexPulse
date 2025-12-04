@@ -162,7 +162,18 @@ export function TradesTable({
                 const { jsPDF } = await import("jspdf");
                 const autoTable = (await import("jspdf-autotable")).default;
                 const doc = new jsPDF();
+                const generatedAt = new Date().toLocaleString();
+                const rangeLabel =
+                  fromDate || toDate
+                    ? `Date range: ${fromDate || "start"} to ${toDate || "now"}`
+                    : "Date range: all records";
+                doc.setFontSize(14);
                 doc.text("ApexPulse Trade History", 14, 14);
+                doc.setFontSize(10);
+                doc.text("Account: Current portfolio", 14, 22);
+                doc.text(rangeLabel, 14, 28);
+                doc.text(`Generated: ${generatedAt}`, 14, 34);
+                doc.text(" ", 14, 38); // spacer
                 autoTable(doc, {
                   head: [["Symbol", "Qty", "Buy", "Current", "Present", "P/L", "Time"]],
                   body: filteredByDate.map((t) => {
@@ -182,6 +193,18 @@ export function TradesTable({
                     ];
                   })
                 });
+                autoTable(doc, {
+                  head: [["Totals", "Invested", "Present", "P/L"]],
+                  body: [
+                    [
+                      "Summary",
+                      formatCurrency(totals.invested),
+                      formatCurrency(totals.present),
+                      formatCurrency(totalPnl)
+                    ]
+                  ],
+                  startY: (doc as any).lastAutoTable.finalY + 8
+                });
                 doc.save("apexpulse-trades.pdf");
               } catch (err: any) {
                 toast.error("Failed to export PDF");
@@ -191,23 +214,6 @@ export function TradesTable({
             <Download className="h-4 w-4" />
             Export PDF
           </button>
-        </div>
-      </div>
-
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
-          <p className="text-xs text-muted-foreground">Total invested</p>
-          <p className="text-lg font-semibold">{formatCurrency(totals.invested)}</p>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
-          <p className="text-xs text-muted-foreground">Present value</p>
-          <p className="text-lg font-semibold">{formatCurrency(totals.present)}</p>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
-          <p className="text-xs text-muted-foreground">P/L</p>
-          <p className={`text-lg font-semibold ${totalPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {formatCurrency(totalPnl)}
-          </p>
         </div>
       </div>
 

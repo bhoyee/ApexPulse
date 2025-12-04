@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatCurrency } from "../lib/utils";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
@@ -44,6 +44,8 @@ export function TradesTable({
   const pageSize = 8;
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const { data = initial } = useQuery({
     queryKey: ["trades"],
@@ -74,9 +76,35 @@ export function TradesTable({
       return sortDir === "desc" ? bTime - aTime : aTime - bTime;
     });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const filteredByDate = useMemo(() => {
+    const fromTs = fromDate ? new Date(fromDate).getTime() : null;
+    const toTs = toDate ? new Date(toDate).getTime() : null;
+    return filtered.filter((t) => {
+      const ts = new Date(t.executedAt).getTime();
+      if (fromTs && ts < fromTs) return false;
+      if (toTs && ts > toTs) return false;
+      return true;
+    });
+  }, [filtered, fromDate, toDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredByDate.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const tradesPage = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const tradesPage = filteredByDate.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const totals = useMemo(() => {
+    return filteredByDate.reduce(
+      (acc, t) => {
+        const qty = Number(t.quantity);
+        const buy = Number(t.price);
+        const current = priceMap[t.symbol.toUpperCase()] ?? 0;
+        acc.invested += qty * buy;
+        acc.present += qty * current;
+        return acc;
+      },
+      { invested: 0, present: 0 }
+    );
+  }, [filteredByDate, priceMap]);
+  const totalPnl = totals.present - totals.invested;
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -92,20 +120,38 @@ export function TradesTable({
 
   return (
     <div className="glass rounded-xl p-4">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Trade history (buys only)</p>
           <p className="text-xs text-muted-foreground">
             Auto-synced from Binance; shows each fill and live P/L.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             className="hidden rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm sm:block"
             placeholder="Filter..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <input
+            type="date"
+            className="rounded-md border border-white/10 bg-transparent px-3 py-2 text-xs"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setPage(1);
+            }}
+          />
+          <input
+            type="date"
+            className="rounded-md border border-white/10 bg-transparent px-3 py-2 text-xs"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value);
               setPage(1);
             }}
           />
@@ -119,7 +165,7 @@ export function TradesTable({
                 doc.text("ApexPulse Trade History", 14, 14);
                 autoTable(doc, {
                   head: [["Symbol", "Qty", "Buy", "Current", "Present", "P/L", "Time"]],
-                  body: data.map((t) => {
+                  body: filteredByDate.map((t) => {
                     const qty = Number(t.quantity);
                     const buy = Number(t.price);
                     const current = priceMap[t.symbol.toUpperCase()] ?? 0;
@@ -145,6 +191,23 @@ export function TradesTable({
             <Download className="h-4 w-4" />
             Export PDF
           </button>
+        </div>
+      </div>
+
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
+          <p className="text-xs text-muted-foreground">Total invested</p>
+          <p className="text-lg font-semibold">{formatCurrency(totals.invested)}</p>
+        </div>
+        <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
+          <p className="text-xs text-muted-foreground">Present value</p>
+          <p className="text-lg font-semibold">{formatCurrency(totals.present)}</p>
+        </div>
+        <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
+          <p className="text-xs text-muted-foreground">P/L</p>
+          <p className={`text-lg font-semibold ${totalPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+            {formatCurrency(totalPnl)}
+          </p>
         </div>
       </div>
 
@@ -180,7 +243,7 @@ export function TradesTable({
                 <div>
                   <p>Current price</p>
                   <p className="text-foreground">
-                    {currentPrice ? formatCurrency(currentPrice) : "—"}
+                    {currentPrice ? formatCurrency(currentPrice) : "�"}
                   </p>
                 </div>
                 <div>
@@ -242,7 +305,7 @@ export function TradesTable({
                   <td className="px-3 py-2 text-right text-sm">{qty.toFixed(2)}</td>
                   <td className="px-3 py-2 text-right text-sm">{formatCurrency(buyPrice)}</td>
                   <td className="px-3 py-2 text-right text-sm">
-                    {currentPrice ? formatCurrency(currentPrice) : "—"}
+                    {currentPrice ? formatCurrency(currentPrice) : "�"}
                   </td>
                   <td className="px-3 py-2 text-right text-sm">
                     {presentValue ? formatCurrency(presentValue) : "-"}
@@ -294,7 +357,7 @@ export function TradesTable({
               Prev
             </button>
             <span>
-              Page {currentPage} / {totalPages} â€¢ {filtered.length} trades
+              Page {currentPage} / {totalPages} | {filteredByDate.length} trades
             </span>
             <button
               className="rounded-md border border-white/10 px-2 py-1 disabled:opacity-50"
@@ -309,4 +372,6 @@ export function TradesTable({
     </div>
   );
 }
+
+
 

@@ -34,10 +34,12 @@ async function fetchPrices(): Promise<Price[]> {
 
 export function TradesTable({
   initial,
-  prices
+  prices,
+  ownerName
 }: {
   initial: Trade[];
   prices: Price[];
+  ownerName?: string;
 }) {
   const client = useQueryClient();
   const [page, setPage] = useState(1);
@@ -170,7 +172,8 @@ export function TradesTable({
                 doc.setFontSize(14);
                 doc.text("ApexPulse Trade History", 14, 14);
                 doc.setFontSize(10);
-                doc.text("Account: Current portfolio", 14, 22);
+                const accountLabel = ownerName ? `Account: ${ownerName}` : "Account: (not set)";
+                doc.text(accountLabel, 14, 22);
                 doc.text(rangeLabel, 14, 28);
                 doc.text(`Generated: ${generatedAt}`, 14, 34);
                 autoTable(doc, {

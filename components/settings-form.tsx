@@ -9,6 +9,7 @@ import { Label } from "./ui/label";
 import { toast } from "sonner";
 
 const schema = z.object({
+  fullName: z.string().optional(),
   binanceApiKey: z.string().optional(),
   binanceApiSecret: z.string().optional(),
   openaiApiKey: z.string().optional(),
@@ -45,6 +46,10 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
       onSubmit={form.handleSubmit(onSubmit)}
     >
       <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="fullName">Full name (for reports)</Label>
+          <Input id="fullName" {...form.register("fullName")} placeholder="Portfolio owner" />
+        </div>
         <div className="space-y-2">
           <Label htmlFor="binanceApiKey">Binance API Key</Label>
           <Input id="binanceApiKey" {...form.register("binanceApiKey")} placeholder="Optional" />

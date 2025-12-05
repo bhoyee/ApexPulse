@@ -19,6 +19,10 @@ export default async function DashboardPage() {
     where: { userId: session.user.id }
   });
 
+  const settings = await prisma.apiSetting.findUnique({
+    where: { userId: session.user.id }
+  });
+
   const trades = await prisma.transaction.findMany({
     where: { userId: session.user.id },
     orderBy: { executedAt: "desc" },
@@ -120,7 +124,11 @@ export default async function DashboardPage() {
         <MarketRadar markets={holdingsWithValue as any} />
         <div className="grid gap-4">
           <HoldingsTable initialHoldings={holdingsSafe as any} initialPrices={markets as any} />
-          <TradesTable initial={tradesSafe as any} prices={priceList as any} />
+          <TradesTable
+            initial={tradesSafe as any}
+            prices={priceList as any}
+            ownerName={settings?.fullName ?? ""}
+          />
         </div>
       </main>
     </div>

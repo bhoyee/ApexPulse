@@ -95,6 +95,7 @@ model Transaction {
 model ApiSetting {
   id                String   @id @default(cuid())
   userId            String   @unique
+  fullName          String?
   binanceApiKey     String?
   binanceApiSecret  String?
   grokApiKey        String?

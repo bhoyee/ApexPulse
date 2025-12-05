@@ -23,6 +23,7 @@ export async function PUT(req: Request) {
 
   const body = await req.json();
   const data = {
+    fullName: body.fullName || null,
     binanceApiKey: body.binanceApiKey || null,
     binanceApiSecret: body.binanceApiSecret || null,
     grokApiKey: null,

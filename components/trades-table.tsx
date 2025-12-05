@@ -173,9 +173,9 @@ export function TradesTable({
                 doc.text("Account: Current portfolio", 14, 22);
                 doc.text(rangeLabel, 14, 28);
                 doc.text(`Generated: ${generatedAt}`, 14, 34);
-                doc.text(" ", 14, 38); // spacer
                 autoTable(doc, {
                   head: [["Symbol", "Qty", "Buy", "Current", "Present", "P/L", "Time"]],
+                  startY: 42,
                   body: filteredByDate.map((t) => {
                     const qty = Number(t.quantity);
                     const buy = Number(t.price);

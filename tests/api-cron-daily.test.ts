@@ -11,7 +11,7 @@ const prismaMock = vi.hoisted(() => ({
     findUnique: vi.fn(),
     findFirst: vi.fn()
   },
-  signal: { createMany: vi.fn() },
+  signal: { createMany: vi.fn(), deleteMany: vi.fn() },
   emailLog: { create: vi.fn() }
 }));
 
@@ -45,6 +45,7 @@ describe("POST /api/cron/daily", () => {
     process.env.SYNC_TOKEN = "token123";
     prismaMock.user.findUnique.mockReset();
     prismaMock.user.findFirst.mockReset();
+    prismaMock.signal.deleteMany.mockReset();
     prismaMock.signal.createMany.mockReset();
   prismaMock.emailLog.create.mockReset();
   binanceMock.getMarketTickers.mockReset();

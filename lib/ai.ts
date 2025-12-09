@@ -82,9 +82,9 @@ function fallbackSignals(): SwingSignal[] {
   ];
   return ideas.map((idea, i) => ({
     symbol: idea.symbol,
-    entryPrice: idea.entryPrice,
+    entryPrice: idea.entryPrice ? idea.entryPrice * (1 + (Math.random() - 0.5) * 0.05) : undefined,
     thesis: idea.thesis,
-    confidence: 75 - i,
+    confidence: Math.max(55, Math.min(90, 75 - i + Math.round((Math.random() - 0.5) * 6))),
     stopLoss: 4 + i * 0.5,
     takeProfit: 9 + i,
     source: "fallback"

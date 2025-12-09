@@ -34,15 +34,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
+  const base = ["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"];
+  const holdingSymbols = (user.holdings ?? []).map((h) => h.asset.toUpperCase());
+  const markets = await getMarketTickers(Array.from(new Set([...base, ...holdingSymbols])));
   const signals = await generateSwingSignals(markets);
 
+  await prisma.signal.deleteMany({ where: { userId: user.id } });
   await prisma.signal.createMany({
     data: signals.map((s) => ({
       userId: user.id,
       symbol: s.symbol,
       summary: s.thesis,
       confidence: s.confidence,
+      entryPrice: s.entryPrice,
       source: s.source.toUpperCase() as any,
       stopLoss: s.stopLoss,
       takeProfit: s.takeProfit

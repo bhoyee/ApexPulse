@@ -123,17 +123,17 @@ Return as a pure JSON array (no prose). Price cap: < $2. Prefer coins that can r
 Market snapshot: ${JSON.stringify(snapshot.slice(0, 12))}`;
 
   try {
+    const ds = await callDeepSeek(prompt);
+    if (ds) return parseSignals(ds, "deepseek");
+  } catch (error) {
+    console.error("DeepSeek error, falling back to OpenAI", error);
+  }
+
+  try {
     const openai = await callOpenAI(prompt);
     if (openai) return parseSignals(openai, "openai");
   } catch (error) {
     console.error("OpenAI error, falling back", error);
-  }
-
-  try {
-    const ds = await callDeepSeek(prompt);
-    if (ds) return parseSignals(ds, "deepseek");
-  } catch (error) {
-    console.error("DeepSeek error, falling back", error);
   }
 
   return fallbackSignals();

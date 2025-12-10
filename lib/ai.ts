@@ -17,8 +17,8 @@ export interface SwingSignal {
   source: ModelChoice;
 }
 
-async function callOpenAI(prompt: string) {
-  const key = process.env.OPENAI_API_KEY;
+async function callOpenAI(prompt: string, key?: string) {
+  key = key || process.env.OPENAI_API_KEY;
   if (!key) return null;
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -42,8 +42,8 @@ async function callOpenAI(prompt: string) {
   return data.choices?.[0]?.message?.content as string;
 }
 
-async function callDeepSeek(prompt: string) {
-  const key = process.env.DEEPSEEK_API_KEY;
+async function callDeepSeek(prompt: string, key?: string) {
+  key = key || process.env.DEEPSEEK_API_KEY;
   if (!key) return null;
   const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
@@ -113,7 +113,8 @@ export function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
 }
 
 export async function generateSwingSignals(
-  snapshot: MarketSnapshot[]
+  snapshot: MarketSnapshot[],
+  opts?: { openaiKey?: string; deepseekKey?: string }
 ): Promise<SwingSignal[]> {
   const prompt = `Generate EXACTLY 10 JSON swing trade ideas for the next 24-72h:
 - First 5 entries: memecoins under $2 with swing potential (avoid BTC/ETH/large caps).
@@ -123,14 +124,14 @@ Return as a pure JSON array (no prose). Price cap: < $2. Prefer coins that can r
 Market snapshot: ${JSON.stringify(snapshot.slice(0, 12))}`;
 
   try {
-    const ds = await callDeepSeek(prompt);
+    const ds = await callDeepSeek(prompt, opts?.deepseekKey);
     if (ds) return parseSignals(ds, "deepseek");
   } catch (error) {
     console.error("DeepSeek error, falling back to OpenAI", error);
   }
 
   try {
-    const openai = await callOpenAI(prompt);
+    const openai = await callOpenAI(prompt, opts?.openaiKey);
     if (openai) return parseSignals(openai, "openai");
   } catch (error) {
     console.error("OpenAI error, falling back", error);

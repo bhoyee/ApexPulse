@@ -139,7 +139,10 @@ async function runDaily() {
       };
     });
 
-    const signals = await generateSwingSignals(markets);
+    const signals = await generateSwingSignals(markets, {
+      openaiKey: user.apiSetting?.openaiApiKey,
+      deepseekKey: user.apiSetting?.deepseekApiKey
+    });
 
     // keep only latest batch per user
     await prisma.signal.deleteMany({ where: { userId: user.id } });

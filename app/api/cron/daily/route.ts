@@ -37,7 +37,10 @@ export async function POST(req: Request) {
   const base = ["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"];
   const holdingSymbols = (user.holdings ?? []).map((h) => h.asset.toUpperCase());
   const markets = await getMarketTickers(Array.from(new Set([...base, ...holdingSymbols])));
-  const signals = await generateSwingSignals(markets);
+  const signals = await generateSwingSignals(markets, {
+    openaiKey: user.apiSetting?.openaiApiKey,
+    deepseekKey: user.apiSetting?.deepseekApiKey
+  });
 
   await prisma.signal.deleteMany({ where: { userId: user.id } });
   await prisma.signal.createMany({

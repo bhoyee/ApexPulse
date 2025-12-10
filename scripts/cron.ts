@@ -75,10 +75,11 @@ async function syncHoldingsForUser(user: any) {
 async function syncTradesForUser(user: any, symbols: string[]) {
   const settings = user.apiSetting;
   if (!settings?.binanceApiKey || !settings?.binanceApiSecret) return;
-  if (!symbols.length) return;
+  const tradable = symbols.filter((s) => !STABLES.has(s));
+  if (!tradable.length) return;
 
   const trades = await getBinanceTrades(
-    symbols,
+    tradable,
     settings.binanceApiKey,
     settings.binanceApiSecret
   );

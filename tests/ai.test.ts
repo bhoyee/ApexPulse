@@ -26,7 +26,6 @@ describe("AI parsing", () => {
 
   it("falls back when JSON is invalid", () => {
     const result = parseSignals("not-json", "fallback");
-    expect(result.length).toBeGreaterThan(0);
-    expect(result[0].symbol).toBeTruthy();
+    expect(result.length).toBe(0);
   });
 });

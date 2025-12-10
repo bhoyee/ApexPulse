@@ -68,27 +68,8 @@ async function callDeepSeek(prompt: string, key?: string) {
 }
 
 function fallbackSignals(): SwingSignal[] {
-  const ideas = [
-    { symbol: "PEPE", entryPrice: 0.0000012, thesis: "Meme liquidity grinding higher; scalp breakouts only." },
-    { symbol: "WIF", entryPrice: 1.2, thesis: "SOL memecoin momentum; look for pullback entries." },
-    { symbol: "BONK", entryPrice: 0.000034, thesis: "SOL meme bid intact; trade VWAP reclaim setups." },
-    { symbol: "FLOKI", entryPrice: 0.00025, thesis: "Rotates with meme beta; monitor funding and perp OI." },
-    { symbol: "DOGS", entryPrice: 0.018, thesis: "SOL meme rotations; thin books—use hard stops." },
-    { symbol: "JUP", entryPrice: 0.85, thesis: "SOL infra token; watch DEX volume + unlock calendar." },
-    { symbol: "PYTH", entryPrice: 0.36, thesis: "Oracle flows; look for volume-led breakouts on SOL DEXs." },
-    { symbol: "TIA", entryPrice: 1.95, thesis: "Rollapp infra; momentum if BTC steady, under $2 clip sizes." },
-    { symbol: "SUI", entryPrice: 1.1, thesis: "Ecosystem growth; buy dips to prior HVN, manage risk." },
-    { symbol: "WOO", entryPrice: 0.32, thesis: "CeFi+DeFi hybrid; trade range breaks with tight invalidation." }
-  ];
-  return ideas.map((idea, i) => ({
-    symbol: idea.symbol,
-    entryPrice: idea.entryPrice ? idea.entryPrice * (1 + (Math.random() - 0.5) * 0.05) : undefined,
-    thesis: idea.thesis,
-    confidence: Math.max(55, Math.min(90, 75 - i + Math.round((Math.random() - 0.5) * 6))),
-    stopLoss: 4 + i * 0.5,
-    takeProfit: 9 + i,
-    source: "fallback"
-  }));
+  // If the LLM fails, return empty so it's obvious signals did not refresh.
+  return [];
 }
 
 export function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
@@ -111,7 +92,7 @@ export function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
     }
     return fallbackSignals();
   } catch (error) {
-    console.warn("AI parse fallback", error);
+    console.warn("AI parse failed", error);
     return fallbackSignals();
   }
 }
@@ -143,3 +124,4 @@ Market snapshot: ${JSON.stringify(snapshot.slice(0, 12))}`;
 
   return fallbackSignals();
 }
+

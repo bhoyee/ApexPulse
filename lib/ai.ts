@@ -93,7 +93,11 @@ function fallbackSignals(): SwingSignal[] {
 
 export function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
   try {
-    const parsed = JSON.parse(raw);
+    const cleaned = raw
+      .replace(/```json/gi, "```")
+      .replace(/```/g, "")
+      .trim();
+    const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
       return parsed.map((item) => ({
         symbol: item.symbol || item.ticker,

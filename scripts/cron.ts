@@ -140,8 +140,8 @@ async function runDaily() {
     });
 
     const signals = await generateSwingSignals(markets, {
-      openaiKey: user.apiSetting?.openaiApiKey,
-      deepseekKey: user.apiSetting?.deepseekApiKey
+      openaiKey: user.apiSetting?.openaiApiKey ?? undefined,
+      deepseekKey: user.apiSetting?.deepseekApiKey ?? undefined
     });
 
     // keep only latest batch per user

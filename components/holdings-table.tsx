@@ -131,7 +131,8 @@ export function HoldingsTable({
   const rowsRaw = holdings.map((h) => {
     const market = priceMap[h.asset.toUpperCase()];
     const current = (market?.price ?? 0) * Number(h.amount);
-    return { ...h, current, market };
+    const invest = Number(h.amount) * Number(h.avgBuyPrice ?? 0);
+    return { ...h, current, invest, market };
   });
 
   const filtered = rowsRaw
@@ -150,6 +151,7 @@ export function HoldingsTable({
   const currentPage = Math.min(page, totalPages);
   const rows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalValue = rows.reduce((t, r) => t + r.current, 0);
+  const totalInvest = rows.reduce((t, r) => t + (r.invest ?? 0), 0);
 
   const currentPrice = priceMap[asset.toUpperCase()]?.price ?? 0;
   const presentValue = (Number(quantity) || 0) * currentPrice;
@@ -277,6 +279,10 @@ export function HoldingsTable({
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               <div>
+                <p>Invest</p>
+                <p className="text-foreground">{formatCurrency(row.invest ?? 0)}</p>
+              </div>
+              <div>
                 <p>Amount</p>
                 <p className="text-foreground">{Number(row.amount).toFixed(2)}</p>
               </div>
@@ -325,6 +331,7 @@ export function HoldingsTable({
           <thead className="bg-white/5">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Asset</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Invest</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Amount</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Value</th>
               <th className="px-4 py-3" />
@@ -334,6 +341,7 @@ export function HoldingsTable({
             {rows.map((row) => (
               <tr key={row.id} className="hover:bg-white/5">
                 <td className="px-4 py-3 font-semibold">{row.asset}</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(row.invest ?? 0)}</td>
                 <td className="px-4 py-3 text-right">{Number(row.amount).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.current)}</td>
                 <td className="px-4 py-3 text-right">
@@ -352,7 +360,7 @@ export function HoldingsTable({
           <tfoot className="bg-white/5">
             <tr>
               <td className="px-4 py-3 font-semibold">Total</td>
-              <td />
+              <td className="px-4 py-3 text-right font-semibold">{formatCurrency(totalInvest)}</td>
               <td className="px-4 py-3 text-right font-semibold">{formatCurrency(totalValue)}</td>
               <td />
             </tr>

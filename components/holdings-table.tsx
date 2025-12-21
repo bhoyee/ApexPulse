@@ -23,6 +23,13 @@ interface Price {
   change24h?: number;
 }
 
+interface Trade {
+  symbol: string;
+  quantity: number;
+  price: number;
+  type?: string;
+}
+
 async function fetchHoldings(): Promise<Holding[]> {
   const res = await fetch("/api/holdings");
   if (!res.ok) throw new Error("Failed to load holdings");
@@ -34,6 +41,12 @@ async function fetchPrices(): Promise<Price[]> {
   if (!res.ok) return [];
   const data = await res.json();
   return data.markets ?? [];
+}
+
+async function fetchTrades(): Promise<Trade[]> {
+  const res = await fetch("/api/transactions");
+  if (!res.ok) return [];
+  return res.json();
 }
 
 export function HoldingsTable({
@@ -66,6 +79,13 @@ export function HoldingsTable({
     queryKey: ["prices"],
     queryFn: fetchPrices,
     initialData: initialPrices,
+    refetchInterval: 15000
+  });
+
+  const { data: trades = [] } = useQuery({
+    queryKey: ["trades"],
+    queryFn: fetchTrades,
+    initialData: [],
     refetchInterval: 15000
   });
 
@@ -128,10 +148,23 @@ export function HoldingsTable({
     [prices]
   );
 
+  const investMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    trades
+      .filter((t) => (t.type ?? "BUY") === "BUY")
+      .forEach((t) => {
+        const sym = t.symbol.toUpperCase();
+        const spend = Number(t.quantity) * Number(t.price);
+        map[sym] = (map[sym] ?? 0) + spend;
+      });
+    return map;
+  }, [trades]);
+
   const rowsRaw = holdings.map((h) => {
     const market = priceMap[h.asset.toUpperCase()];
     const current = (market?.price ?? 0) * Number(h.amount);
-    const invest = Number(h.amount) * Number(h.avgBuyPrice ?? 0);
+    const invest =
+      investMap[h.asset.toUpperCase()] ?? Number(h.amount) * Number(h.avgBuyPrice ?? 0);
     return { ...h, current, invest, market };
   });
 

@@ -64,6 +64,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
 
   // Build a single-row dataset so each symbol renders with its own color
   const categories = data.map((d) => d.symbol);
+  const categoryColors = categories.map((_, i) => colors[i % colors.length]);
   const barData =
     data.length === 0
       ? []
@@ -89,8 +90,8 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           className="mt-4 h-80 md:h-96"
           data={barData}
           index="symbol"
-          categories={["value"]}
-          colors={colors}
+          categories={categories}
+          colors={categoryColors}
           valueFormatter={(n) => formatCurrency(Number(n))}
           yAxisWidth={64}
         />

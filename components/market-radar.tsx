@@ -62,7 +62,20 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
     })
     .filter((d) => d.value > 5);
 
-  const barData = data.map((d) => ({ symbol: d.symbol, value: d.value }));
+  // Build a single-row dataset so each symbol renders with its own color
+  const categories = data.map((d) => d.symbol);
+  const barData =
+    data.length === 0
+      ? []
+      : [
+          data.reduce(
+            (acc, d) => {
+              acc[d.symbol] = d.value;
+              return acc;
+            },
+            { symbol: "portfolio" } as Record<string, any>
+          )
+        ];
   const donutData = data.map((d) => ({ name: d.symbol, value: d.value }));
 
   return (

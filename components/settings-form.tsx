@@ -52,7 +52,7 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="binanceApiKey">Binance API Key</Label>
-          <Input id="binanceApiKey" {...form.register("binanceApiKey")} placeholder="Optional" />
+          <Input id="binanceApiKey" type="password" {...form.register("binanceApiKey")} placeholder="Optional" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="binanceApiSecret">Binance API Secret</Label>
@@ -65,15 +65,15 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="openaiApiKey">OpenAI API Key (primary)</Label>
-          <Input id="openaiApiKey" {...form.register("openaiApiKey")} placeholder="sk-..." />
+          <Input id="openaiApiKey" type="password" {...form.register("openaiApiKey")} placeholder="sk-..." />
         </div>
         <div className="space-y-2">
           <Label htmlFor="deepseekApiKey">DeepSeek API Key (fallback)</Label>
-          <Input id="deepseekApiKey" {...form.register("deepseekApiKey")} placeholder="sk-..." />
+          <Input id="deepseekApiKey" type="password" {...form.register("deepseekApiKey")} placeholder="sk-..." />
         </div>
         <div className="space-y-2">
           <Label htmlFor="resendApiKey">Resend API Key</Label>
-          <Input id="resendApiKey" {...form.register("resendApiKey")} placeholder="re_" />
+          <Input id="resendApiKey" type="password" {...form.register("resendApiKey")} placeholder="re_" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="resendFrom">Resend From Email</Label>

@@ -1,7 +1,16 @@
 "use client";
 
-import { BarChart, DonutChart } from "@tremor/react";
+import { DonutChart } from "@tremor/react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart as RBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RTooltip,
+  ResponsiveContainer,
+  Cell
+} from "recharts";
 import { formatCurrency } from "../lib/utils";
 
 interface Holding {
@@ -62,21 +71,8 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
     })
     .filter((d) => d.value > 5);
 
-  // Build a single-row dataset so each symbol renders with its own color
-  const categories = data.map((d) => d.symbol);
-  const categoryColors = categories.map((_, i) => colors[i % colors.length]);
-  const barData =
-    data.length === 0
-      ? []
-      : [
-          data.reduce(
-            (acc, d) => {
-              acc[d.symbol] = d.value;
-              return acc;
-            },
-            { symbol: "portfolio" } as Record<string, any>
-          )
-        ];
+  // Per-symbol dataset for Recharts
+  const barData = data;
   const donutData = data.map((d) => ({ name: d.symbol, value: d.value }));
 
   return (
@@ -86,15 +82,20 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
           <span className="text-xs text-muted-foreground">Holdings &gt; $5</span>
         </div>
-        <BarChart
-          className="mt-4 h-80 md:h-96"
-          data={barData}
-          index="symbol"
-          categories={categories}
-          colors={categoryColors}
-          valueFormatter={(n) => formatCurrency(Number(n))}
-          yAxisWidth={64}
-        />
+        <div className="mt-4 h-80 md:h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <RBarChart data={barData} margin={{ left: 12, right: 12, top: 8, bottom: 24 }}>
+              <XAxis dataKey="symbol" />
+              <YAxis tickFormatter={(v) => formatCurrency(Number(v)).replace("$", "")} />
+              <RTooltip formatter={(val) => formatCurrency(Number(val))} />
+              <Bar dataKey="value">
+                {barData.map((entry, index) => (
+                  <Cell key={entry.symbol} fill={colors[index % colors.length]} />
+                ))}
+              </Bar>
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
       <div className="chart-card bg-card border border-border text-card-foreground">
         <div className="mb-2 flex items-center justify-between">

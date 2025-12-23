@@ -29,21 +29,20 @@ interface AssetSnapshot {
   value: number;
 }
 
-// Tremor-supported palette tokens for distinct bars/slices
+// Distinct color palette for both bar and donut slices
 const colors = [
-  "emerald",
-  "blue",
-  "violet",
-  "amber",
-  "fuchsia",
-  "teal",
-  "indigo",
-  "rose",
-  "cyan",
-  "lime",
-  "orange",
-  "pink",
-  "red"
+  "#ef4444", // red
+  "#3b82f6", // blue
+  "#10b981", // emerald
+  "#f59e0b", // amber
+  "#a855f7", // purple
+  "#ec4899", // pink
+  "#22d3ee", // cyan
+  "#f97316", // orange
+  "#84cc16", // lime
+  "#0ea5e9", // sky
+  "#6366f1", // indigo
+  "#14b8a6"  // teal
 ];
 
 async function fetchHoldings(): Promise<Holding[]> {

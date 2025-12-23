@@ -74,6 +74,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
   // Per-symbol dataset for Recharts
   const barData = data;
   const donutData = data.map((d) => ({ name: d.symbol, value: d.value }));
+  const donutColors = donutData.map((_, i) => colors[i % colors.length]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -107,7 +108,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
           data={donutData}
           category="value"
           index="name"
-          colors={colors}
+          colors={donutColors}
           valueFormatter={(n) => formatCurrency(Number(n))}
         />
       </div>

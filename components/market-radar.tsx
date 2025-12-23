@@ -29,7 +29,22 @@ interface AssetSnapshot {
   value: number;
 }
 
-const colors = ["red", "blue", "green", "yellow", "pink", "gray", "amber", "cyan", "violet"];
+// Tremor-supported palette tokens for distinct bars/slices
+const colors = [
+  "emerald",
+  "blue",
+  "violet",
+  "amber",
+  "fuchsia",
+  "teal",
+  "indigo",
+  "rose",
+  "cyan",
+  "lime",
+  "orange",
+  "pink",
+  "red"
+];
 
 async function fetchHoldings(): Promise<Holding[]> {
   const res = await fetch("/api/holdings");

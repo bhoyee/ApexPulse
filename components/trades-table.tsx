@@ -14,6 +14,11 @@ interface Trade {
   executedAt: string;
 }
 
+interface Holding {
+  asset: string;
+  amount: number;
+}
+
 interface Price {
   symbol: string;
   price: number;
@@ -30,6 +35,12 @@ async function fetchPrices(): Promise<Price[]> {
   if (!res.ok) throw new Error("Failed to load prices");
   const data = await res.json();
   return data.markets ?? [];
+}
+
+async function fetchHoldings(): Promise<Holding[]> {
+  const res = await fetch("/api/holdings");
+  if (!res.ok) throw new Error("Failed to load holdings");
+  return res.json();
 }
 
 export function TradesTable({
@@ -56,6 +67,13 @@ export function TradesTable({
     refetchInterval: 15000
   });
 
+  const { data: holdings = [] } = useQuery({
+    queryKey: ["holdings"],
+    queryFn: fetchHoldings,
+    initialData: [],
+    refetchInterval: 15000
+  });
+
   const { data: livePrices = prices } = useQuery({
     queryKey: ["prices"],
     queryFn: fetchPrices,
@@ -70,7 +88,13 @@ export function TradesTable({
     return acc;
   }, {});
 
+  const activeSymbols = new Set(
+    holdings.filter((h) => Number(h.amount) > 0).map((h) => h.asset.toUpperCase())
+  );
+  const filterActive = activeSymbols.size > 0;
+
   const filtered = data
+    .filter((t) => !filterActive || activeSymbols.has(t.symbol.toUpperCase()))
     .filter((t) => t.symbol.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       const aTime = new Date(a.executedAt).getTime();

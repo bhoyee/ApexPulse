@@ -89,7 +89,14 @@ export function TradesTable({
   }, {});
 
   const activeSymbols = new Set(
-    holdings.filter((h) => Number(h.amount) > 0).map((h) => h.asset.toUpperCase())
+    holdings
+      .filter((h) => {
+        const qty = Number(h.amount);
+        if (qty <= 0) return false;
+        const price = priceMap[h.asset.toUpperCase()] ?? 0;
+        return qty * price > 5;
+      })
+      .map((h) => h.asset.toUpperCase())
   );
   const filterActive = activeSymbols.size > 0;
 

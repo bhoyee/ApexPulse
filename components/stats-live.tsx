@@ -84,11 +84,23 @@ export function StatsLive({
     0
   );
 
-  // Total invested should match trade history (sum of Investment USD)
-  const totalInvested = trades.reduce(
-    (sum, t) => sum + Number(t.quantity) * Number(t.price),
-    0
+  const activeSymbols = new Set(
+    holdings
+      .filter((h) => {
+        const qty = Number(h.amount);
+        if (qty <= 0) return false;
+        const price = priceMap[h.asset.toUpperCase()]?.price ?? 0;
+        return qty * price > 5;
+      })
+      .map((h) => h.asset.toUpperCase())
   );
+  const filterActive = activeSymbols.size > 0;
+
+  // Total invested should match active holdings (sum of Investment USD)
+  const totalInvested = trades.reduce((sum, t) => {
+    if (filterActive && !activeSymbols.has(t.symbol.toUpperCase())) return sum;
+    return sum + Number(t.quantity) * Number(t.price);
+  }, 0);
 
   const overallPnl = trades.reduce((sum, t) => {
     const qty = Number(t.quantity);

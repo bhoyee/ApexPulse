@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "./ui/button";
 import { BadgeDollarSign, RefreshCw } from "lucide-react";
-import { formatPercent } from "../lib/utils";
 import { toast } from "sonner";
 
 interface Signal {
@@ -32,8 +31,13 @@ export function SignalList({ initial }: { initial: Signal[] }) {
   });
 
   const refresh = async () => {
-    toast("Generating fresh swings with OpenAI (DeepSeek fallback)…");
-    await fetchSignals(true);
+    toast("Generating fresh swings with DeepSeek (OpenAI fallback)");
+    const res = await fetch(`/api/signals?refresh=true`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error ?? "Failed to refresh signals");
+      return;
+    }
     await refetch();
   };
 
@@ -43,7 +47,7 @@ export function SignalList({ initial }: { initial: Signal[] }) {
         <div>
           <p className="text-sm font-semibold text-muted-foreground">AI Swing Signals</p>
           <p className="text-xs text-muted-foreground">
-            OpenAI primary, DeepSeek fallback — stored locally for compliance.
+            DeepSeek primary, OpenAI fallback. Stored locally for compliance.
           </p>
         </div>
         <Button variant="outline" size="sm" disabled={isFetching} onClick={refresh}>
@@ -65,13 +69,13 @@ export function SignalList({ initial }: { initial: Signal[] }) {
                 <BadgeDollarSign className="h-4 w-4" />
                 <span>Conf {s.confidence}%</span>
                 <span>
-                  Entry{" "}
+                  Entry {" "}
                   {s.entryPrice !== undefined && s.entryPrice !== null
                     ? `$${Number(s.entryPrice).toFixed(4)}`
-                    : "—"}
+                    : "-"}
                 </span>
-                <span>SL {s.stopLoss ?? "—"}%</span>
-                <span>TP {s.takeProfit ?? "—"}%</span>
+                <span>SL {s.stopLoss ?? "-"}%</span>
+                <span>TP {s.takeProfit ?? "-"}%</span>
               </div>
             </div>
             <p className="mt-2 text-sm text-foreground">{s.summary}</p>
@@ -80,6 +84,11 @@ export function SignalList({ initial }: { initial: Signal[] }) {
             </p>
           </div>
         ))}
+        {!data?.length && (
+          <div className="rounded-lg border border-white/5 bg-white/5 p-4 text-sm text-muted-foreground">
+            No signals yet. Click Refresh after setting your API keys.
+          </div>
+        )}
       </div>
     </div>
   );

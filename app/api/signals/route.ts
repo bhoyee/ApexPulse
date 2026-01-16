@@ -22,8 +22,18 @@ export async function GET(req: Request) {
     return NextResponse.json(signals);
   }
 
+  const settings = await prisma.apiSetting.findUnique({
+    where: { userId: session.user.id }
+  });
+  if (!settings?.deepseekApiKey && !settings?.openaiApiKey) {
+    return NextResponse.json({ error: "Missing AI API key" }, { status: 400 });
+  }
+
   const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
-  const signals = await generateSwingSignals(markets);
+  const signals = await generateSwingSignals(markets, {
+    deepseekKey: settings?.deepseekApiKey ?? undefined,
+    openaiKey: settings?.openaiApiKey ?? undefined
+  });
 
   await prisma.signal.deleteMany({ where: { userId: session.user.id } });
   await prisma.signal.createMany({

@@ -45,6 +45,25 @@ export default function DocsPage() {
   ↕ Binance REST/WebSocket + LLMs + Resend`}
             </pre>
           </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+            <p className="mb-2 font-semibold text-foreground">Mermaid diagram</p>
+            <pre className="whitespace-pre-wrap">
+{`flowchart TD
+    Browser[Next.js App\\nTanStack Query + Tremor] --> API[/Next.js API Routes/]
+    API --> Auth[NextAuth v5\\nPrisma Adapter]
+    API --> Holdings[Holdings/Signals/Settings APIs]
+    API --> Binance[Binance REST + WebSocket]
+    API --> AI[DeepSeek -> OpenAI]
+    API --> Email[Resend + React Email]
+    Holdings --> DB[(PostgreSQL via Prisma)]
+    Auth --> DB
+    Cron[Cron container\\ntsx scripts/cron.ts] --> API
+    Cron --> Binance
+    Cron --> AI
+    Cron --> Email
+    Cron --> DB`}
+            </pre>
+          </div>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             <li>Next.js serves the UI and API routes from one app.</li>
             <li>Prisma handles database queries and data modeling.</li>
@@ -107,6 +126,29 @@ export default function DocsPage() {
             <li>AI signals refresh on demand or via cron schedule.</li>
             <li>Email delivery runs after signal generation.</li>
           </ul>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold">Scaling Plan</h2>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            <li>Single-node: app + Postgres + cron in one Docker compose.</li>
+            <li>Split services: run app and cron as separate services.</li>
+            <li>Move Postgres to a managed provider for durability.</li>
+            <li>Add Redis for caching and rate limiting.</li>
+          </ul>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold">Future Exchange Adapters</h2>
+          <p className="text-sm text-muted-foreground">
+            Next plan: implement an exchange adapter framework so adding Coinbase, Kraken, KuCoin,
+            OKX, or Bybit is a small plug-in change.
+          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+            <li>Create an ExchangeAdapter interface (balances, trades, prices).</li>
+            <li>Refactor Binance to the adapter.</li>
+            <li>Add one new exchange based on your choice.</li>
+          </ol>
         </section>
 
         <section className="space-y-2">

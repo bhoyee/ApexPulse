@@ -133,6 +133,20 @@ flowchart TD
     Cron --> DB
 ```
 
+## Scaling Guide (when you grow)
+- **Single-node:** One app container + Postgres + cron (Docker compose).
+- **Split services:** Run the Next.js app and cron worker as separate services.
+- **External DB:** Move Postgres to Supabase/managed Postgres for durability.
+- **Caching:** Add Redis to reduce API calls and speed up dashboards.
+- **Rate limits:** Add per-user rate limiting and task queues for sync jobs.
+
+## Future Exchange Adapters (planned)
+We plan to add a plug-in adapter framework so you can select your exchange and plug in API keys.
+Next steps:
+1. Create a shared `ExchangeAdapter` interface.
+2. Refactor Binance to the adapter.
+3. Add another exchange (Coinbase, Kraken, KuCoin, OKX, or Bybit).
+
 ## Pricing behavior
 - Bulk prices from `/api/v3/ticker/24hr` for `COINUSDT`.
 - Per-symbol fallback via `/api/v3/ticker/price?symbol=COINUSDT` if missing.

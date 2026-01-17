@@ -122,14 +122,42 @@ export default function DocsPage() {
         <section className="space-y-2">
           <h2 className="text-xl font-semibold">Tech Stack</h2>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-            <li>Next.js 15 App Router + TypeScript</li>
-            <li>Tailwind CSS + shadcn/ui + lucide-react</li>
-            <li>Tremor + Recharts for charts</li>
-            <li>TanStack Query v5</li>
-            <li>Prisma + PostgreSQL</li>
-            <li>NextAuth v5 (Credentials + Google)</li>
-            <li>Resend + React Email</li>
-            <li>Docker + docker-compose</li>
+            <li>
+              <span className="font-semibold text-foreground">Next.js 15 + TypeScript:</span> full-stack
+              app with typed API routes, server components, and strong type safety.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Tailwind + shadcn/ui + lucide:</span>{" "}
+              rapid, consistent UI with accessible components and icons.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Tremor + Recharts:</span> clean charts for
+              portfolio dominance and price glide.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">TanStack Query:</span> background refresh,
+              caching, and real-time-ish UI updates.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Prisma + PostgreSQL:</span> structured
+              storage for trades, holdings, settings, and signals.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">NextAuth v5:</span> secure sessions with
+              credentials + Google OAuth.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">DeepSeek + OpenAI:</span> AI swing signal
+              generation with fallback reliability.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Resend + React Email:</span> daily signal
+              email delivery.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Docker + compose:</span> portable deployment
+              with local/prod parity.
+            </li>
           </ul>
         </section>
 

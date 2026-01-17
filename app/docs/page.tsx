@@ -70,6 +70,14 @@ export default function DocsPage() {
     Cron --> DB`}
             </pre>
           </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+            <p className="mb-2 font-semibold text-foreground">Architecture image</p>
+            <img
+              src="/architecture.svg"
+              alt="ApexPulse architecture diagram"
+              className="w-full rounded-lg border border-white/10 bg-white/5"
+            />
+          </div>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             <li>Next.js serves the UI and API routes from one app.</li>
             <li>Prisma handles database queries and data modeling.</li>

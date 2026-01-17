@@ -5,13 +5,17 @@
 ApexPulse is a production-ready crypto command center: Next.js 15 (App Router), Tailwind + shadcn/ui, Tremor 3.0 charts, TanStack Query v5, Prisma + Postgres, NextAuth v5, OpenAI primary with DeepSeek fallback, Resend daily briefs, and full Docker support from day one.
 
 ## Tech
-- Next.js 15 (App Router) + TypeScript (strict)
-- TailwindCSS + shadcn/ui + lucide-react + Tremor 3.0
-- TanStack Query v5, React Hook Form + Zod, next-themes
-- Prisma ORM + PostgreSQL, NextAuth v5 (Credentials + Google)
-- Binance Spot API (REST + WebSocket ready hooks)
-- OpenAI (primary) -> DeepSeek fallback, Resend + React Email
-- Docker & docker-compose (multi-stage, small final image), optional Redis
+- **Next.js 15 (App Router) + TypeScript:** full-stack app with typed API routes, server components, and strict types for safety.
+- **TailwindCSS + shadcn/ui + lucide-react:** consistent, fast UI build with accessible components and iconography.
+- **Tremor + Recharts:** professional charting (dominance + price glide) with responsive visuals.
+- **TanStack Query v5:** real-time-ish data fetching, caching, and background refresh.
+- **React Hook Form + Zod + next-themes:** validated forms, schema safety, and theming.
+- **Prisma ORM + PostgreSQL:** clean data modeling + durable relational storage.
+- **NextAuth v5 (Credentials + Google):** secure login and session management.
+- **Binance Spot API (REST):** holdings, trades, and market prices.
+- **DeepSeek primary → OpenAI fallback:** AI swing signals with fallback reliability.
+- **Resend + React Email:** transactional daily signals email.
+- **Docker + docker-compose:** one-command local/dev/prod parity; optional Redis for caching later.
 
 ### Default Ports (avoids 3000/3300/5433/15432)
 - App: `3100`

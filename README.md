@@ -116,6 +116,10 @@ docker compose exec apexpulse node prisma/seed.js
 - (optional) `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_PORTAL_RETURN_URL`, `STRIPE_TEST_CUSTOMER_ID`, `STRIPE_CHECKOUT_PRO_URL`, `STRIPE_CHECKOUT_ENTERPRISE_URL`
 
 ## Architecture (high level)
+ApexPulse is a **modular monolith**: the UI and API live in one Next.js app, and background work
+is done by a separate cron container. The database is a single Postgres instance accessed through
+Prisma. External services (Binance, LLMs, Resend) are called by the API layer and the cron worker.
+
 ```mermaid
 flowchart TD
     Browser[Next.js App<br/>TanStack Query + Tremor] --> API[/Next.js API Routes/]
@@ -132,6 +136,15 @@ flowchart TD
     Cron --> Email
     Cron --> DB
 ```
+
+### How the pieces connect
+- **UI (Next.js App Router):** renders dashboard, charts, settings, and trade history.
+- **API routes (Next.js):** expose `/api/*` endpoints for holdings, trades, prices, and signals.
+- **Prisma ORM:** all read/write access to Postgres.
+- **Cron worker:** runs scheduled sync + signal generation jobs.
+- **External services:** Binance for balances/trades/prices, DeepSeek/OpenAI for signals, Resend for email.
+
+This keeps deployment simple while still separating web requests from background jobs.
 
 ## Scaling Guide (when you grow)
 - **Single-node:** One app container + Postgres + cron (Docker compose).

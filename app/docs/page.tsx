@@ -35,6 +35,12 @@ export default function DocsPage() {
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold">Architecture Overview</h2>
+          <p className="text-sm text-muted-foreground">
+            ApexPulse uses a <span className="font-semibold text-foreground">modular monolith</span>.
+            The web UI and API live in one Next.js app. A separate cron worker runs scheduled jobs.
+            Both talk to the same Postgres database through Prisma. External services (Binance, LLMs,
+            Resend) are called by the API layer and the cron worker.
+          </p>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
             <p className="mb-2 font-semibold text-foreground">High-level flow</p>
             <pre className="whitespace-pre-wrap">
@@ -46,7 +52,7 @@ export default function DocsPage() {
             </pre>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
-            <p className="mb-2 font-semibold text-foreground">Mermaid diagram</p>
+            <p className="mb-2 font-semibold text-foreground">Mermaid diagram (renderable)</p>
             <pre className="whitespace-pre-wrap">
 {`flowchart TD
     Browser[Next.js App\\nTanStack Query + Tremor] --> API[/Next.js API Routes/]

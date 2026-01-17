@@ -73,7 +73,7 @@ export default function DocsPage() {
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
             <p className="mb-2 font-semibold text-foreground">Architecture image</p>
             <img
-              src="/architecture.svg"
+              src="/architecture.png"
               alt="ApexPulse architecture diagram"
               className="w-full rounded-lg border border-white/10 bg-white/5"
             />

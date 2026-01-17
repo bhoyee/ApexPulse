@@ -124,7 +124,7 @@ ApexPulse is a **modular monolith**: the UI and API live in one Next.js app, and
 is done by a separate cron container. The database is a single Postgres instance accessed through
 Prisma. External services (Binance, LLMs, Resend) are called by the API layer and the cron worker.
 
-![Architecture Diagram](public/architecture.svg)
+![Architecture Diagram](public/architecture.png)
 
 ```mermaid
 flowchart TD

@@ -278,6 +278,24 @@ export default function DocsPage() {
             <li>Use the Trade History export for tax reporting.</li>
           </ol>
         </section>
+
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold">Internal API (Not Public)</h2>
+          <p className="text-sm text-muted-foreground">
+            These endpoints are consumed by the UI and cron worker. They are not designed as a
+            public API and require authentication.
+          </p>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            <li>GET /api/holdings, POST /api/holdings</li>
+            <li>PUT /api/holdings/[id], DELETE /api/holdings/[id]</li>
+            <li>GET /api/prices</li>
+            <li>GET /api/transactions, POST /api/transactions</li>
+            <li>DELETE /api/transactions/[id]</li>
+            <li>GET /api/signals, GET /api/signals?refresh=true</li>
+            <li>POST /api/cron/daily (authorized)</li>
+            <li>POST /api/sync/binance (authorized)</li>
+          </ul>
+        </section>
       </main>
     </div>
   );

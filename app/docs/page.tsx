@@ -194,6 +194,73 @@ export default function DocsPage() {
         </section>
 
         <section className="space-y-2">
+          <h2 className="text-xl font-semibold">Database Diagram (ERD)</h2>
+          <p className="text-sm text-muted-foreground">
+            The core tables are Users, Settings, Holdings, Transactions, and Signals. Below is a
+            Mermaid ERD you can paste into any Mermaid renderer.
+          </p>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+            <pre className="whitespace-pre-wrap">
+{`erDiagram
+  User ||--o{ ApiSetting : has
+  User ||--o{ Holding : owns
+  User ||--o{ Transaction : records
+  User ||--o{ Signal : receives
+
+  User {
+    string id
+    string email
+    string name
+    datetime createdAt
+  }
+  ApiSetting {
+    string id
+    string userId
+    string binanceApiKey
+    string binanceApiSecret
+    string openaiApiKey
+    string deepseekApiKey
+    string resendApiKey
+    string resendFrom
+    string dailyEmailTo
+    string fullName
+    datetime createdAt
+  }
+  Holding {
+    string id
+    string userId
+    string asset
+    float amount
+    float avgBuyPrice
+    string chain
+    datetime updatedAt
+  }
+  Transaction {
+    string id
+    string userId
+    string symbol
+    float quantity
+    float price
+    string type
+    datetime executedAt
+  }
+  Signal {
+    string id
+    string userId
+    string symbol
+    string summary
+    int confidence
+    float entryPrice
+    float stopLoss
+    float takeProfit
+    string source
+    datetime createdAt
+  }`}
+            </pre>
+          </div>
+        </section>
+
+        <section className="space-y-2">
           <h2 className="text-xl font-semibold">Security Notes</h2>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             <li>Never commit API keys; set them in Settings or env vars.</li>

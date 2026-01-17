@@ -234,3 +234,19 @@ Next steps:
 ## Auto-sync cadence
 - Controlled by `CRON_INTERVAL_SECONDS` (default 300s ~5m).
 - Cron syncs Binance for each user before generating signals and emails.
+
+## Internal API (not public)
+These endpoints are used by the frontend and cron worker. All require auth unless noted.
+
+- `GET /api/holdings` -> list of holdings.
+- `POST /api/holdings` -> create a holding (manual add).
+- `PUT /api/holdings/[id]` -> update holding.
+- `DELETE /api/holdings/[id]` -> delete holding.
+- `GET /api/prices` -> current prices (Binance + fallbacks).
+- `GET /api/transactions` -> buy-only trades (history table).
+- `POST /api/transactions` -> create manual trade.
+- `DELETE /api/transactions/[id]` -> delete trade.
+- `GET /api/signals` -> latest AI signals.
+- `GET /api/signals?refresh=true` -> generate new signals (uses Settings keys).
+- `POST /api/cron/daily` -> cron signal + email (authorized).
+- `POST /api/sync/binance` -> sync holdings/trades (authorized).

@@ -152,6 +152,65 @@ flowchart TD
 
 This keeps deployment simple while still separating web requests from background jobs.
 
+## Database Diagram (ERD)
+```mermaid
+erDiagram
+  User ||--o{ ApiSetting : has
+  User ||--o{ Holding : owns
+  User ||--o{ Transaction : records
+  User ||--o{ Signal : receives
+
+  User {
+    string id
+    string email
+    string name
+    datetime createdAt
+  }
+  ApiSetting {
+    string id
+    string userId
+    string binanceApiKey
+    string binanceApiSecret
+    string openaiApiKey
+    string deepseekApiKey
+    string resendApiKey
+    string resendFrom
+    string dailyEmailTo
+    string fullName
+    datetime createdAt
+  }
+  Holding {
+    string id
+    string userId
+    string asset
+    float amount
+    float avgBuyPrice
+    string chain
+    datetime updatedAt
+  }
+  Transaction {
+    string id
+    string userId
+    string symbol
+    float quantity
+    float price
+    string type
+    datetime executedAt
+  }
+  Signal {
+    string id
+    string userId
+    string symbol
+    string summary
+    int confidence
+    float entryPrice
+    float stopLoss
+    float takeProfit
+    string source
+    datetime createdAt
+  }
+```
+
 ## Scaling Guide (when you grow)
 - **Single-node:** One app container + Postgres + cron (Docker compose).
 - **Split services:** Run the Next.js app and cron worker as separate services.

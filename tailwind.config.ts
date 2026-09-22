@@ -9,6 +9,18 @@ const config: Config = {
     "./styles/**/*.{ts,tsx}",
     "./node_modules/@tremor/react/dist/**/*.js"
   ],
+  // Tremor builds class names like `fill-emerald-500` at runtime via string
+  // concatenation, so Tailwind's static scanner never sees the literal
+  // string and purges it from the production build (chart slices render
+  // with no fill -> default black). Safelist the color/shade combos Tremor
+  // charts actually use so they survive the purge.
+  safelist: [
+    {
+      pattern:
+        /^(?:bg|fill|stroke|text|border|ring)-(?:red|blue|emerald|amber|purple|pink|cyan|orange|lime|sky|indigo|teal|gray)-(?:400|500|600)$/,
+      variants: ["dark", "hover"]
+    }
+  ],
   theme: {
     extend: {
       colors: {

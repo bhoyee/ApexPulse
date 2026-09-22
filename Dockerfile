@@ -32,15 +32,14 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.mjs ./next.config.mjs
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/lib ./lib
-COPY scripts ./scripts
-RUN chown -R app:app /app/node_modules /app/.next /app/prisma /app/public /app/scripts /app/lib /app/package.json /app/next.config.mjs
+COPY --from=deps --chown=app:app /app/node_modules ./node_modules
+COPY --from=builder --chown=app:app /app/.next ./.next
+COPY --from=builder --chown=app:app /app/public ./public
+COPY --from=builder --chown=app:app /app/package.json ./package.json
+COPY --from=builder --chown=app:app /app/next.config.mjs ./next.config.mjs
+COPY --from=builder --chown=app:app /app/prisma ./prisma
+COPY --from=builder --chown=app:app /app/lib ./lib
+COPY --chown=app:app scripts ./scripts
 
 USER app
 EXPOSE 3100

@@ -20,7 +20,8 @@ vi.mock("../lib/prisma", () => ({
 }));
 
 const binanceMock = vi.hoisted(() => ({
-  getMarketTickers: vi.fn()
+  getMarketTickers: vi.fn(),
+  getSwingCandidateMarkets: vi.fn()
 }));
 vi.mock("../lib/binance", () => binanceMock);
 
@@ -49,6 +50,7 @@ describe("POST /api/cron/daily", () => {
     prismaMock.signal.createMany.mockReset();
   prismaMock.emailLog.create.mockReset();
   binanceMock.getMarketTickers.mockReset();
+  binanceMock.getSwingCandidateMarkets.mockReset();
   aiMock.generateSwingSignals.mockReset();
   emailMock.sendDailyEmail.mockReset();
   process.env.RESEND_API_KEY = "test-resend";
@@ -70,8 +72,8 @@ describe("POST /api/cron/daily", () => {
       apiSetting: { dailyEmailTo: "demo@example.com" },
       holdings: [{ asset: "HBAR", amount: 100 }]
     });
-    binanceMock.getMarketTickers.mockResolvedValue([
-      { symbol: "HBAR", price: 0.1, change24h: 0, volume: 0, high: 0.1, low: 0.1 }
+    binanceMock.getSwingCandidateMarkets.mockResolvedValue([
+      { symbol: "HBAR", price: 0.1, change24h: 0, volume: 0, quoteVolume: 0, high: 0.1, low: 0.1 }
     ]);
     aiMock.generateSwingSignals.mockResolvedValue([
       { symbol: "HBAR", thesis: "test", confidence: 80, source: "openai" }

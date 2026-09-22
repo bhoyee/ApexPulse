@@ -9,6 +9,7 @@ import { generateSwingSignals } from "../lib/ai";
 import { sendDailyEmail } from "../lib/email";
 import {
   getMarketTickers,
+  getSwingCandidateMarkets,
   getBinanceBalances,
   getBinanceTrades
 } from "../lib/binance";
@@ -110,8 +111,6 @@ async function syncTradesForUser(user: any, symbols: string[]) {
 }
 
 async function runDaily() {
-  const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
-
   const users = await prisma.user.findMany({
     include: {
       apiSetting: true,
@@ -130,6 +129,8 @@ async function runDaily() {
 
     // Sync trades per symbol (USDT pairs)
     await syncTradesForUser(user, symbols);
+
+    const markets = await getSwingCandidateMarkets(symbols);
 
     const holdingsValue = refreshedHoldings.map((h) => {
       const price = markets.find((m) => m.symbol === h.asset)?.price ?? 0;

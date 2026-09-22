@@ -47,11 +47,13 @@ const STABLES = ["USDT", "USDC", "BUSD", "FDUSD", "TUSD"];
 export function StatsLive({
   initialHoldings,
   initialPrices,
-  initialTrades
+  initialTrades,
+  minHoldingValueUsd = 5
 }: {
   initialHoldings: Holding[];
   initialPrices: Price[];
   initialTrades: Trade[];
+  minHoldingValueUsd?: number;
 }) {
   const { data: holdings = initialHoldings } = useQuery({
     queryKey: ["holdings"],
@@ -90,7 +92,7 @@ export function StatsLive({
         const qty = Number(h.amount);
         if (qty <= 0) return false;
         const price = priceMap[h.asset.toUpperCase()]?.price ?? 0;
-        return qty * price > 5;
+        return qty * price > minHoldingValueUsd;
       })
       .map((h) => h.asset.toUpperCase())
   );

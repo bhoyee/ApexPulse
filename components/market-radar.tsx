@@ -58,7 +58,13 @@ async function fetchPrices(): Promise<Price[]> {
   return data.markets ?? [];
 }
 
-export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
+export function MarketRadar({
+  markets,
+  minHoldingValueUsd = 5
+}: {
+  markets: AssetSnapshot[];
+  minHoldingValueUsd?: number;
+}) {
   const { data: holdings = [] } = useQuery({
     queryKey: ["holdings"],
     queryFn: fetchHoldings,
@@ -83,7 +89,7 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
       const price = priceMap[h.asset.toUpperCase()] ?? 0;
       return { symbol: h.asset.toUpperCase(), value: Number(h.amount) * price };
     })
-    .filter((d) => d.value > 5);
+    .filter((d) => d.value > minHoldingValueUsd);
 
   // Per-symbol dataset for Recharts
   const barData = data;
@@ -95,7 +101,9 @@ export function MarketRadar({ markets }: { markets: AssetSnapshot[] }) {
       <div className="chart-card bg-card border border-border text-card-foreground">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
-          <span className="text-xs text-muted-foreground">Holdings &gt; $5</span>
+          <span className="text-xs text-muted-foreground">
+            Holdings &gt; {formatCurrency(minHoldingValueUsd)}
+          </span>
         </div>
         <div className="mt-4 h-80 md:h-96">
           <ResponsiveContainer width="100%" height="100%">

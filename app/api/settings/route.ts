@@ -22,6 +22,7 @@ export async function PUT(req: Request) {
   }
 
   const body = await req.json();
+  const minHoldingValueUsd = Number(body.minHoldingValueUsd);
   const data = {
     fullName: body.fullName || null,
     binanceApiKey: body.binanceApiKey || null,
@@ -31,7 +32,11 @@ export async function PUT(req: Request) {
     deepseekApiKey: body.deepseekApiKey || null,
     resendApiKey: body.resendApiKey || null,
     resendFrom: body.resendFrom || null,
-    dailyEmailTo: body.dailyEmailTo || null
+    dailyEmailTo: body.dailyEmailTo || null,
+    minHoldingValueUsd:
+      Number.isFinite(minHoldingValueUsd) && minHoldingValueUsd >= 0
+        ? minHoldingValueUsd
+        : 5
   };
   const updated = await prisma.apiSetting.upsert({
     where: { userId: session.user.id },

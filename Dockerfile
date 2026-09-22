@@ -20,6 +20,10 @@ RUN npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV BUILD_DATE=$BUILD_DATE
 RUN groupadd -r app && useradd -r -g app app
 WORKDIR /app
 ENV PORT=3100

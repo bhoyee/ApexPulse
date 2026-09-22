@@ -46,11 +46,13 @@ async function fetchHoldings(): Promise<Holding[]> {
 export function TradesTable({
   initial,
   prices,
-  ownerName
+  ownerName,
+  minHoldingValueUsd = 5
 }: {
   initial: Trade[];
   prices: Price[];
   ownerName?: string;
+  minHoldingValueUsd?: number;
 }) {
   const client = useQueryClient();
   const [page, setPage] = useState(1);
@@ -94,7 +96,7 @@ export function TradesTable({
         const qty = Number(h.amount);
         if (qty <= 0) return false;
         const price = priceMap[h.asset.toUpperCase()] ?? 0;
-        return qty * price > 5;
+        return qty * price > minHoldingValueUsd;
       })
       .map((h) => h.asset.toUpperCase())
   );

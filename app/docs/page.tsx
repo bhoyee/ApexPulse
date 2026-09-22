@@ -96,7 +96,8 @@ export default function DocsPage() {
             </li>
             <li>
               <span className="font-semibold text-foreground">Charts</span> show price glide (bar)
-              and dominance (pie) using only assets valued over $5.
+              and dominance (pie) using only assets above your minimum holding value (default $5,
+              configurable in Settings).
             </li>
             <li>
               <span className="font-semibold text-foreground">Holdings table</span> lists assets,

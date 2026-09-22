@@ -23,6 +23,8 @@ export default async function DashboardPage() {
     where: { userId: session.user.id }
   });
 
+  const minHoldingValueUsd = settings?.minHoldingValueUsd ?? 5;
+
   const trades = await prisma.transaction.findMany({
     where: { userId: session.user.id },
     orderBy: { executedAt: "desc" },
@@ -65,7 +67,7 @@ export default async function DashboardPage() {
       const value = Number(h.amount) * price;
       return { symbol: h.asset, price, value };
     })
-    .filter((h) => h.value > 5);
+    .filter((h) => h.value > minHoldingValueUsd);
 
   const holdingsSafe = holdings.map((h) => ({
     ...h,
@@ -120,14 +122,20 @@ export default async function DashboardPage() {
           initialHoldings={holdingsSafe as any}
           initialPrices={markets as any}
           initialTrades={tradesSafe as any}
+          minHoldingValueUsd={minHoldingValueUsd}
         />
-        <MarketRadar markets={holdingsWithValue as any} />
+        <MarketRadar markets={holdingsWithValue as any} minHoldingValueUsd={minHoldingValueUsd} />
         <div className="grid gap-4">
-          <HoldingsTable initialHoldings={holdingsSafe as any} initialPrices={markets as any} />
+          <HoldingsTable
+            initialHoldings={holdingsSafe as any}
+            initialPrices={markets as any}
+            minHoldingValueUsd={minHoldingValueUsd}
+          />
           <TradesTable
             initial={tradesSafe as any}
             prices={priceList as any}
             ownerName={settings?.fullName ?? ""}
+            minHoldingValueUsd={minHoldingValueUsd}
           />
         </div>
       </main>

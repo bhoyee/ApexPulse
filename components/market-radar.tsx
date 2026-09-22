@@ -29,7 +29,7 @@ interface AssetSnapshot {
   value: number;
 }
 
-// Distinct color palette for both bar and donut slices
+// Distinct color palette for the recharts bar chart (raw hex, same hues/order as tremorColors below)
 const colors = [
   "#ef4444", // red
   "#3b82f6", // blue
@@ -43,6 +43,24 @@ const colors = [
   "#0ea5e9", // sky
   "#6366f1", // indigo
   "#14b8a6"  // teal
+];
+
+// Tremor's DonutChart only recognizes its own named color tokens, not hex
+// codes — passing hex here silently falls back to a single dark fill for
+// every slice. Same order/hues as `colors` above so both charts match.
+const tremorColors = [
+  "red",
+  "blue",
+  "emerald",
+  "amber",
+  "purple",
+  "pink",
+  "cyan",
+  "orange",
+  "lime",
+  "sky",
+  "indigo",
+  "teal"
 ];
 
 async function fetchHoldings(): Promise<Holding[]> {
@@ -94,7 +112,7 @@ export function MarketRadar({
   // Per-symbol dataset for Recharts
   const barData = data;
   const donutData = data.map((d) => ({ name: d.symbol, value: d.value }));
-  const donutColors = donutData.map((_, i) => colors[i % colors.length]);
+  const donutColors = donutData.map((_, i) => tremorColors[i % tremorColors.length]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2">

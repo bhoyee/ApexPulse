@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 import { generateSwingSignals } from "../../../../lib/ai";
-import { getMarketTickers } from "../../../../lib/binance";
+import { getSwingCandidateMarkets } from "../../../../lib/binance";
 import { sendDailyEmail } from "../../../../lib/email";
 
 function isBearerAuthorized(req: Request) {
@@ -34,9 +34,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const base = ["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"];
   const holdingSymbols = (user.holdings ?? []).map((h) => h.asset.toUpperCase());
-  const markets = await getMarketTickers(Array.from(new Set([...base, ...holdingSymbols])));
+  const markets = await getSwingCandidateMarkets(holdingSymbols);
   const signals = await generateSwingSignals(markets, {
     openaiKey: user.apiSetting?.openaiApiKey ?? undefined,
     deepseekKey: user.apiSetting?.deepseekApiKey ?? undefined

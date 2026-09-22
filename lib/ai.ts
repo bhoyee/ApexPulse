@@ -5,7 +5,12 @@ interface MarketSnapshot {
   price: number;
   change24h?: number;
   volume?: number;
+  quoteVolume?: number;
+  high?: number;
+  low?: number;
 }
+
+const MIN_CONFIDENCE = 80;
 
 export interface SwingSignal {
   symbol: string;
@@ -28,9 +33,13 @@ async function callOpenAI(prompt: string, key?: string) {
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
-      temperature: 0.4,
+      temperature: 0.2,
       messages: [
-        { role: "system", content: "You are ApexPulse, an institutional swing trader. Respond in JSON." },
+        {
+          role: "system",
+          content:
+            "You are ApexPulse, a disciplined institutional swing trader who only recommends trades backed by the concrete data you're given. You never invent tickers, and you never inflate confidence to fill a quota. Respond in JSON."
+        },
         { role: "user", content: prompt }
       ]
     })
@@ -53,9 +62,13 @@ async function callDeepSeek(prompt: string, key?: string) {
     },
     body: JSON.stringify({
       model: "deepseek-chat",
-      temperature: 0.4,
+      temperature: 0.2,
       messages: [
-        { role: "system", content: "You are ApexPulse, an institutional swing trader. Respond in JSON." },
+        {
+          role: "system",
+          content:
+            "You are ApexPulse, a disciplined institutional swing trader who only recommends trades backed by the concrete data you're given. You never invent tickers, and you never inflate confidence to fill a quota. Respond in JSON."
+        },
         { role: "user", content: prompt }
       ]
     })
@@ -81,9 +94,12 @@ export function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
     const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
       return parsed.map((item) => ({
-        symbol: item.symbol || item.ticker,
+        symbol: String(item.symbol || item.ticker || "").toUpperCase().trim(),
         thesis: item.thesis || item.reason || "Algorithmic edge.",
-        confidence: Number(item.confidence || 70),
+        // No generous default here on purpose: if the model omits confidence,
+        // it should be filtered out by the MIN_CONFIDENCE gate below rather
+        // than silently passed through at an inflated score.
+        confidence: Number(item.confidence ?? 0),
         entryPrice: item.entry || item.entryPrice ? Number(item.entry ?? item.entryPrice) : undefined,
         stopLoss: item.stopLoss ? Number(item.stopLoss) : undefined,
         takeProfit: item.takeProfit ? Number(item.takeProfit) : undefined,
@@ -101,23 +117,46 @@ export async function generateSwingSignals(
   snapshot: MarketSnapshot[],
   opts?: { openaiKey?: string; deepseekKey?: string }
 ): Promise<SwingSignal[]> {
-  const prompt = `Generate EXACTLY 10 JSON swing trade ideas for the next 24-72h:
-- First 5 entries: memecoins under $2 with swing potential (avoid BTC/ETH/large caps).
-- Next 5 entries: newly launched/low-cap tokens on Solana or BSC under $2 with momentum potential.
-- Keys per object: symbol, entryPrice (USD), thesis (1-2 sentences), confidence (0-100), stopLoss (pct), takeProfit (pct).
-Return as a pure JSON array (no prose). Price cap: < $2. Prefer coins that can realistically 2x on momentum.
-Market snapshot: ${JSON.stringify(snapshot.slice(0, 12))}`;
+  const candidates = snapshot.slice(0, 40);
+  const validSymbols = new Set(candidates.map((c) => c.symbol.toUpperCase()));
+
+  const prompt = `You are screening real, currently-liquid Binance USDT pairs for swing trades over the next 24-72h. This snapshot is the ONLY universe you may pick from -- never invent, guess, or reference a symbol that is not in this exact list. Every entry already has real live price/volume data; do not assume anything about a coin beyond what's given.
+
+Market snapshot (symbol, price USD, change24h %, 24h volume, 24h high, 24h low):
+${JSON.stringify(candidates)}
+
+For each candidate you consider, run this due-diligence checklist using ONLY the data above:
+1. Trend confirmation: is change24h clearly positive (active momentum), or is price basing near its 24h low after a selloff (mean-reversion setup)? State which case applies.
+2. Liquidity: does the 24h volume support entering/exiting a swing position without excessive slippage?
+3. Room to run: is price meaningfully below its 24h high (upside room), rather than already stretched at the top of its range?
+4. Risk/reward: can you set a stopLoss and takeProfit (both as % from entry) where the reward is at least 1.5x the risk?
+
+Score confidence 0-100 based strictly on how many of these 4 checks are clearly satisfied by the data -- not vibes, not general knowledge about the coin. Only include an idea in your response if confidence >= ${MIN_CONFIDENCE} AND at least 3 of the 4 checks pass. If nothing in the snapshot clears that bar, return an empty array. Do not lower your standard or invent reasons just to return more ideas -- an empty array is a valid, honest answer.
+
+Return 0-5 ideas as a pure JSON array (no prose, no markdown fences). Each object:
+{ "symbol": string (must exactly match a symbol from the snapshot), "thesis": string (2-3 sentences citing the specific change24h/volume/range numbers that justify the call), "confidence": number (${MIN_CONFIDENCE}-100 only), "entryPrice": number, "stopLoss": number (pct), "takeProfit": number (pct) }`;
+
+  const vet = (signals: SwingSignal[]) =>
+    signals.filter(
+      (s) => s.confidence >= MIN_CONFIDENCE && validSymbols.has(s.symbol.toUpperCase())
+    );
 
   try {
     const ds = await callDeepSeek(prompt, opts?.deepseekKey);
-    if (ds) return parseSignals(ds, "deepseek");
+    if (ds) {
+      const vetted = vet(parseSignals(ds, "deepseek"));
+      if (vetted.length) return vetted;
+    }
   } catch (error) {
     console.error("DeepSeek error, falling back to OpenAI", error);
   }
 
   try {
     const openai = await callOpenAI(prompt, opts?.openaiKey);
-    if (openai) return parseSignals(openai, "openai");
+    if (openai) {
+      const vetted = vet(parseSignals(openai, "openai"));
+      if (vetted.length) return vetted;
+    }
   } catch (error) {
     console.error("OpenAI error, falling back", error);
   }

@@ -178,6 +178,88 @@ export async function getMarketTickers(symbols: string[]) {
   return Array.from(tickerMap.values());
 }
 
+const LEVERAGED_TOKEN_SUFFIXES = ["UP", "DOWN", "BULL", "BEAR"];
+const STABLE_OR_FIAT_BASES = new Set([
+  "USDT", "USDC", "BUSD", "FDUSD", "TUSD", "DAI", "USDP",
+  "EUR", "GBP", "TRY", "BRL", "ARS", "UAH", "ZAR"
+]);
+
+export interface MarketCandidate {
+  symbol: string;
+  price: number;
+  change24h: number;
+  volume: number;
+  quoteVolume: number;
+  high: number;
+  low: number;
+}
+
+// Pulls Binance's full spot ticker list and narrows it to real, liquid,
+// currently-tradable USDT pairs sorted by 24h quote volume. This is the
+// "real due diligence" universe the AI is allowed to pick swing ideas
+// from -- it excludes stablecoins/fiat pairs and leveraged tokens (3x/UP/
+// DOWN products), and every entry is backed by live price/volume data
+// rather than the model guessing at obscure tickers from memory.
+export async function getTopUsdtMarkets(limit = 30): Promise<MarketCandidate[]> {
+  const res = await fetch(`${BINANCE_API}/api/v3/ticker/24hr`);
+  if (!res.ok) return [];
+
+  const all = (await res.json()) as Array<{
+    symbol: string;
+    lastPrice: string;
+    priceChangePercent: string;
+    highPrice: string;
+    lowPrice: string;
+    volume: string;
+    quoteVolume: string;
+  }>;
+
+  return all
+    .filter((t) => t.symbol.endsWith("USDT"))
+    .map((t) => ({ ...t, base: t.symbol.slice(0, -4) }))
+    .filter(
+      ({ base }) =>
+        !STABLE_OR_FIAT_BASES.has(base) &&
+        !LEVERAGED_TOKEN_SUFFIXES.some((suffix) => base.endsWith(suffix))
+    )
+    .map(
+      (t): MarketCandidate => ({
+        symbol: t.base,
+        price: Number(t.lastPrice),
+        change24h: Number(t.priceChangePercent),
+        volume: Number(t.volume),
+        quoteVolume: Number(t.quoteVolume),
+        high: Number(t.highPrice),
+        low: Number(t.lowPrice)
+      })
+    )
+    .filter((t) => Number.isFinite(t.price) && t.price > 0 && t.quoteVolume > 0)
+    .sort((a, b) => b.quoteVolume - a.quoteVolume)
+    .slice(0, limit);
+}
+
+// Broad, liquid market universe (for AI swing signals) plus whatever the
+// user actually holds, so existing positions are always considered even
+// if they fall outside the top-volume cut.
+export async function getSwingCandidateMarkets(
+  holdingSymbols: string[] = [],
+  limit = 30
+): Promise<MarketCandidate[]> {
+  const [top, holdings] = await Promise.all([
+    getTopUsdtMarkets(limit),
+    holdingSymbols.length ? getMarketTickers(holdingSymbols) : Promise.resolve([])
+  ]);
+
+  const bySymbol = new Map(top.map((m) => [m.symbol, m]));
+  holdings.forEach((m) => {
+    if (!bySymbol.has(m.symbol)) {
+      bySymbol.set(m.symbol, { ...m, quoteVolume: m.price * m.volume });
+    }
+  });
+
+  return Array.from(bySymbol.values());
+}
+
 const COINGECKO_IDS: Record<string, string> = {
   VET: "vechain",
   HBAR: "hedera-hashgraph",

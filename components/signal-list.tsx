@@ -47,7 +47,7 @@ export function SignalList({ initial }: { initial: Signal[] }) {
         <div>
           <p className="text-sm font-semibold text-muted-foreground">AI Swing Signals</p>
           <p className="text-xs text-muted-foreground">
-            DeepSeek primary, OpenAI fallback. Stored locally for compliance.
+            Only ideas that clear an 80%+ conviction bar on real due diligence (trend, liquidity, upside room, risk/reward) are shown. DeepSeek primary, OpenAI fallback.
           </p>
         </div>
         <Button variant="outline" size="sm" disabled={isFetching} onClick={refresh}>
@@ -86,7 +86,8 @@ export function SignalList({ initial }: { initial: Signal[] }) {
         ))}
         {!data?.length && (
           <div className="rounded-lg border border-white/5 bg-white/5 p-4 text-sm text-muted-foreground">
-            No signals yet. Click Refresh after setting your API keys.
+            No coins currently clear the 80%+ conviction bar. That's expected some days -- click Refresh
+            to re-screen, or set your API keys in Settings if you haven't yet.
           </div>
         )}
       </div>

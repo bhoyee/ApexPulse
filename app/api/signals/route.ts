@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
-import { getMarketTickers } from "../../../lib/binance";
+import { getSwingCandidateMarkets } from "../../../lib/binance";
 import { generateSwingSignals } from "../../../lib/ai";
 
 export async function GET(req: Request) {
@@ -29,7 +29,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing AI API key" }, { status: 400 });
   }
 
-  const markets = await getMarketTickers(["BTC", "ETH", "SOL", "AVAX", "LINK", "OP", "TIA"]);
+  const holdings = await prisma.holding.findMany({
+    where: { userId: session.user.id },
+    select: { asset: true }
+  });
+  const markets = await getSwingCandidateMarkets(holdings.map((h) => h.asset.toUpperCase()));
   const signals = await generateSwingSignals(markets, {
     deepseekKey: settings?.deepseekApiKey ?? undefined,
     openaiKey: settings?.openaiApiKey ?? undefined

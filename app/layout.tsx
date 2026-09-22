@@ -6,6 +6,7 @@ import { ThemeProvider } from "../components/theme-provider";
 import { QueryProvider } from "../components/query-provider";
 import { Toaster } from "../components/ui/sonner";
 import { AuthProvider } from "../components/session-provider";
+import { VersionFooter } from "../components/version-footer";
 import { auth } from "../lib/auth";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -29,6 +30,7 @@ export default async function RootLayout({
           <AuthProvider session={session}>
             <QueryProvider>
               {children}
+              <VersionFooter />
               <Toaster position="top-right" />
             </QueryProvider>
           </AuthProvider>

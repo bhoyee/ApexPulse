@@ -51,10 +51,12 @@ async function fetchTrades(): Promise<Trade[]> {
 
 export function HoldingsTable({
   initialHoldings,
-  initialPrices
+  initialPrices,
+  minHoldingValueUsd = 5
 }: {
   initialHoldings: Holding[];
   initialPrices: Price[];
+  minHoldingValueUsd?: number;
 }) {
   const client = useQueryClient();
   const [page, setPage] = useState(1);
@@ -169,7 +171,7 @@ export function HoldingsTable({
   });
 
   const filtered = rowsRaw
-    .filter((r) => r.current > 5) // only show >$5 positions
+    .filter((r) => r.current > minHoldingValueUsd) // only show positions above the configured threshold
     .filter((r) => r.asset.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (sortKey === "value") {

@@ -16,7 +16,8 @@ const schema = z.object({
   deepseekApiKey: z.string().optional(),
   resendApiKey: z.string().optional(),
   resendFrom: z.string().email().optional(),
-  dailyEmailTo: z.string().email().optional()
+  dailyEmailTo: z.string().email().optional(),
+  minHoldingValueUsd: z.coerce.number().min(0).optional()
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -24,7 +25,7 @@ type FormValues = z.infer<typeof schema>;
 export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: initial ?? {}
+    defaultValues: { minHoldingValueUsd: 5, ...initial }
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -82,6 +83,20 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
         <div className="space-y-2">
           <Label htmlFor="dailyEmailTo">Daily Signal Email</Label>
           <Input id="dailyEmailTo" type="email" {...form.register("dailyEmailTo")} placeholder="you@desk.io" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="minHoldingValueUsd">Minimum holding value to track ($)</Label>
+          <Input
+            id="minHoldingValueUsd"
+            type="number"
+            min="0"
+            step="0.01"
+            {...form.register("minHoldingValueUsd")}
+            placeholder="5"
+          />
+          <p className="text-xs text-muted-foreground">
+            Holdings, charts, and stats worth less than this are hidden from the dashboard. Default is $5.
+          </p>
         </div>
       </div>
       <div className="flex justify-end gap-2">

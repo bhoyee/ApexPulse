@@ -35,6 +35,16 @@ Services (migrations auto-run before start):
 - `redis`: reserved for future rate limiting (mapped 6380:6379)
 - `cron`: runs the daily AI signal + email job via `npm run cron`
 
+### Rebuilding after pulling new code
+`docker compose up --build` always rebuilds from whatever is in your working
+tree, so a `git pull` followed by that command picks up the latest code.
+To also stamp the exact commit + build date into the image (shown in the
+footer of every page), build with:
+```bash
+npm run docker:build   # stamps GIT_COMMIT/BUILD_DATE, then docker compose build
+docker compose up
+```
+
 Visit http://localhost:3100. Seed admin (if provided) is created via `prisma/seed.js`. After adding Binance API key/secret in **Settings**, the cron worker auto-syncs (default every 5m via `CRON_INTERVAL_SECONDS`), and you can also click **Sync Binance** on the dashboard holdings card for an immediate refresh.
 
 ## Local Dev (without Docker)

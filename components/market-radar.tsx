@@ -121,19 +121,22 @@ export function MarketRadar({
   const donutColors = donutData.map((_, i) => tremorColors[i % tremorColors.length]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="chart-card bg-card border border-border text-card-foreground">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-muted-foreground">Price Glide</h3>
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="chart-card bg-card border border-border p-4 text-card-foreground">
+        <div className="mb-1 flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-muted-foreground">Price Glide</h3>
           <span className="text-xs text-muted-foreground">
             Holdings &gt; {formatCurrency(minHoldingValueUsd)}
           </span>
         </div>
-        <div className="mt-4 h-80 md:h-96">
+        <div className="mt-2 h-44 md:h-52">
           <ResponsiveContainer width="100%" height="100%">
-            <RBarChart data={barData} margin={{ left: 12, right: 12, top: 8, bottom: 24 }}>
-              <XAxis dataKey="symbol" />
-              <YAxis tickFormatter={(v) => formatCurrency(Number(v)).replace("$", "")} />
+            <RBarChart data={barData} margin={{ left: 12, right: 12, top: 8, bottom: 16 }}>
+              <XAxis dataKey="symbol" tick={{ fontSize: 11 }} />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => formatCurrency(Number(v)).replace("$", "")}
+              />
               <RTooltip formatter={(val) => formatCurrency(Number(val))} />
               <Bar dataKey="value">
                 {barData.map((entry, index) => (
@@ -144,13 +147,13 @@ export function MarketRadar({
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="chart-card bg-card border border-border text-card-foreground">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-muted-foreground">Dominance</h3>
+      <div className="chart-card bg-card border border-border p-4 text-card-foreground">
+        <div className="mb-1 flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-muted-foreground">Dominance</h3>
           <span className="text-xs text-muted-foreground">Share by value</span>
         </div>
         <DonutChart
-          className="mt-3 h-80 text-xs"
+          className="mt-2 h-44 text-xs md:h-52"
           data={donutData}
           category="value"
           index="name"

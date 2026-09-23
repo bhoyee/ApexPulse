@@ -44,11 +44,11 @@ body {
 }
 
 .card-grid {
-  @apply grid gap-5 sm:grid-cols-2 lg:grid-cols-3;
+  @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3;
 }
 
 .chart-card {
-  @apply glass rounded-xl p-6 shadow-floating;
+  @apply glass rounded-xl p-4 shadow-floating;
 }
 
 .tremor-Card-root {

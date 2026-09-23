@@ -98,15 +98,15 @@ export function StatCards({ stats }: { stats: StatProps }) {
   return (
     <div className="card-grid">
       {items.map((item) => (
-        <div key={item.label} className="glass rounded-xl p-4 shadow-floating">
-          <div className="flex items-center gap-3">
-            <span className="rounded-lg bg-primary/10 p-2 text-primary">
-              <item.icon className="h-5 w-5" />
+        <div key={item.label} className="glass rounded-lg p-3 shadow-floating">
+          <div className="flex items-center gap-2.5">
+            <span className="rounded-md bg-primary/10 p-1.5 text-primary">
+              <item.icon className="h-4 w-4" />
             </span>
             <div>
-              <p className="text-xs text-muted-foreground">{item.label}</p>
-              <p className={`text-xl font-semibold ${item.tone ?? ""}`}>{item.value}</p>
-              <p className="text-xs text-muted-foreground">{item.helper}</p>
+              <p className="text-[11px] text-muted-foreground">{item.label}</p>
+              <p className={`text-lg font-semibold leading-tight ${item.tone ?? ""}`}>{item.value}</p>
+              <p className="text-[11px] text-muted-foreground">{item.helper}</p>
             </div>
           </div>
         </div>

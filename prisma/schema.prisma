@@ -79,6 +79,12 @@ model Holding {
   // or "bamboo"/"cscs"/"manual" for one-time hand-entered positions that still
   // get their price auto-refreshed going forward.
   source       String?        @default("binance")
+  // USD-converted snapshot of the last-synced current price. Only set for
+  // source="trading212": Trading212 reports prices in the instrument's
+  // native currency (e.g. GBP for LSE listings), already converted to USD
+  // at sync time, so the dashboard never has to re-guess the currency of a
+  // ticker via a generic price source.
+  lastPriceUsd Float?
   tags         String[]       @default([])
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt

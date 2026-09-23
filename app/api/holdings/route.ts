@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
+import { getUsdRate } from "../../../lib/fx";
+
+// Markets whose native currency isn't USD -- the "Buy price" entered for
+// these is in that local currency and gets converted once here, so every
+// downstream component can keep assuming USD.
+const MARKET_CURRENCY: Record<string, string> = { NGX: "NGN" };
 
 export async function GET() {
   const session = await auth();
@@ -39,11 +45,16 @@ export async function POST(req: Request) {
   }
 
   const isStock = assetClass === "STOCK";
+  const holdingMarket = isStock ? (market || "US").toUpperCase() : null;
+  const currency = holdingMarket ? MARKET_CURRENCY[holdingMarket] : undefined;
+  const fxRate = currency ? await getUsdRate(currency) : 1;
+  const avgBuyPriceUsd = avgNum * fxRate;
+
   const holding = await prisma.holding.create({
     data: {
       asset: asset.toUpperCase(),
       amount: amountNum,
-      avgBuyPrice: avgNum,
+      avgBuyPrice: avgBuyPriceUsd,
       tags,
       userId: session.user.id,
       assetClass: isStock ? "STOCK" : "CRYPTO",

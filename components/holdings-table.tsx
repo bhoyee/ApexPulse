@@ -52,6 +52,12 @@ async function fetchTrades(): Promise<Trade[]> {
   return res.json();
 }
 
+async function fetchStockQuote(symbol: string, market: string) {
+  const res = await fetch(`/api/stock-quote?symbol=${encodeURIComponent(symbol)}&market=${market}`);
+  if (!res.ok) return null;
+  return res.json() as Promise<{ quote: Price | null; currency: string }>;
+}
+
 export function HoldingsTable({
   initialHoldings,
   initialPrices,
@@ -95,6 +101,12 @@ export function HoldingsTable({
     queryFn: fetchTrades,
     initialData: [],
     refetchInterval: 15000
+  });
+
+  const { data: stockPreview } = useQuery({
+    queryKey: ["stock-quote", assetClass, asset, market],
+    queryFn: () => fetchStockQuote(asset, market),
+    enabled: assetClass === "STOCK" && asset.trim().length > 0
   });
 
   const createMutation = useMutation({
@@ -199,7 +211,12 @@ export function HoldingsTable({
   const totalValue = rows.reduce((t, r) => t + r.current, 0);
   const totalInvest = rows.reduce((t, r) => t + (r.invest ?? 0), 0);
 
-  const currentPrice = priceMap[asset.toUpperCase()]?.price ?? 0;
+  const isNgx = assetClass === "STOCK" && market === "NGX";
+  const currencyLabel = isNgx ? "NGN" : "USD";
+  const currentPrice =
+    assetClass === "STOCK"
+      ? stockPreview?.quote?.price ?? 0
+      : priceMap[asset.toUpperCase()]?.price ?? 0;
   const presentValue = (Number(quantity) || 0) * currentPrice;
 
   return (
@@ -213,7 +230,7 @@ export function HoldingsTable({
             <Label htmlFor="assetClass">Type</Label>
             <select
               id="assetClass"
-              className="w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm"
+              className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-foreground"
               value={assetClass}
               onChange={(e) => setAssetClass(e.target.value as "CRYPTO" | "STOCK")}
             >
@@ -227,7 +244,7 @@ export function HoldingsTable({
                 <Label htmlFor="market">Market</Label>
                 <select
                   id="market"
-                  className="w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-foreground"
                   value={market}
                   onChange={(e) => setMarket(e.target.value as "US" | "NGX")}
                 >
@@ -239,7 +256,7 @@ export function HoldingsTable({
                 <Label htmlFor="source">Broker</Label>
                 <select
                   id="source"
-                  className="w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-foreground"
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                 >
@@ -260,7 +277,7 @@ export function HoldingsTable({
             />
           </div>
           <div>
-            <Label htmlFor="investment">Investment (USD)</Label>
+            <Label htmlFor="investment">Investment ({currencyLabel})</Label>
             <Input
               id="investment"
               value={investmentUsd}
@@ -281,7 +298,7 @@ export function HoldingsTable({
             />
           </div>
           <div>
-            <Label htmlFor="buy">Buy price (USD)</Label>
+            <Label htmlFor="buy">Buy price ({currencyLabel})</Label>
             <Input
               id="buy"
               value={buyPrice}
@@ -290,6 +307,11 @@ export function HoldingsTable({
               step="0.0001"
               min="0"
             />
+            {isNgx && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Converted to USD automatically at today&apos;s rate when saved.
+              </p>
+            )}
           </div>
           <div>
             <Label htmlFor="ts">Date/Time (optional)</Label>
@@ -303,13 +325,17 @@ export function HoldingsTable({
           <div>
             <Label>Current price</Label>
             <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm">
-              {currentPrice ? formatCurrency(currentPrice) : "-"}
+              {currentPrice
+                ? formatCurrency(currentPrice, currencyLabel)
+                : assetClass === "STOCK" && asset.trim()
+                  ? "Looking up..."
+                  : "-"}
             </div>
           </div>
           <div>
             <Label>Present value (auto)</Label>
             <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm">
-              {presentValue ? formatCurrency(presentValue) : "-"}
+              {presentValue ? formatCurrency(presentValue, currencyLabel) : "-"}
             </div>
           </div>
         </div>

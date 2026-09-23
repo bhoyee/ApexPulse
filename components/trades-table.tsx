@@ -47,12 +47,17 @@ export function TradesTable({
   initial,
   prices,
   ownerName,
-  minHoldingValueUsd = 5
+  minHoldingValueUsd = 5,
+  symbols,
+  subtitle = "Auto-synced from Binance; shows each fill and live P/L."
 }: {
   initial: Trade[];
   prices: Price[];
   ownerName?: string;
   minHoldingValueUsd?: number;
+  /** Restrict trade history to this set of symbols (e.g. one dashboard section). Omit to include everything. */
+  symbols?: string[];
+  subtitle?: string;
 }) {
   const client = useQueryClient();
   const [page, setPage] = useState(1);
@@ -62,12 +67,15 @@ export function TradesTable({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const { data = initial } = useQuery({
+  const { data: allTrades = initial } = useQuery({
     queryKey: ["trades"],
     queryFn: fetchTrades,
     initialData: initial,
     refetchInterval: 15000
   });
+
+  const allowed = symbols ? new Set(symbols.map((s) => s.toUpperCase())) : null;
+  const data = allowed ? allTrades.filter((t) => allowed.has(t.symbol.toUpperCase())) : allTrades;
 
   const { data: holdings = [] } = useQuery({
     queryKey: ["holdings"],
@@ -158,9 +166,7 @@ export function TradesTable({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Trade history (buys only)</p>
-          <p className="text-xs text-muted-foreground">
-            Auto-synced from Binance; shows each fill and live P/L.
-          </p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input

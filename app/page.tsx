@@ -6,7 +6,7 @@ import { StatCards } from "../components/stat-cards";
 import { StatsLive } from "../components/stats-live";
 import { HoldingsTable } from "../components/holdings-table";
 import { MarketRadar } from "../components/market-radar";
-import { getMarketTickers } from "../lib/binance";
+import { getPricesForHoldings } from "../lib/pricing";
 import { TradesTable } from "../components/trades-table";
 
 export default async function DashboardPage() {
@@ -31,16 +31,16 @@ export default async function DashboardPage() {
     take: 200
   });
 
+  // Trade history is crypto-only today, so BUY symbols always need a crypto
+  // quote regardless of what's held now.
+  const tradeSymbols = trades.map((t) => t.symbol.toUpperCase());
   const symbolsAll = Array.from(
-    new Set([
-      ...holdings.map((h) => h.asset.toUpperCase()),
-      ...trades.map((t) => t.symbol.toUpperCase())
-    ])
+    new Set([...holdings.map((h) => h.asset.toUpperCase()), ...tradeSymbols])
   );
 
   let markets =
     symbolsAll.length > 0
-      ? await getMarketTickers(symbolsAll)
+      ? await getPricesForHoldings(holdings, tradeSymbols)
       : [];
 
   if (!markets.length) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
-import { getMarketTickers } from "../../../lib/binance";
+import { getPricesForHoldings } from "../../../lib/pricing";
 
 export async function GET() {
   const session = await auth();
@@ -17,14 +17,17 @@ export async function GET() {
     })
   ]);
 
+  // Transaction history is crypto-only today (stocks don't sync trades yet),
+  // so BUY symbols always need a crypto quote regardless of what's held now.
+  const tradeSymbols = trades.map((t) => t.symbol.toUpperCase());
   const symbols = Array.from(
-    new Set([
-      ...holdings.map((h) => h.asset.toUpperCase()),
-      ...trades.map((t) => t.symbol.toUpperCase())
-    ])
+    new Set([...holdings.map((h) => h.asset.toUpperCase()), ...tradeSymbols])
   );
 
-  const markets = await getMarketTickers(symbols.length ? symbols : ["BTC", "ETH", "SOL"]);
+  const markets = await getPricesForHoldings(
+    holdings,
+    tradeSymbols.length ? tradeSymbols : symbols.length ? [] : ["BTC", "ETH", "SOL"]
+  );
 
   // ensure stables always have price 1
   const stableSymbols = ["USDT", "USDC", "BUSD", "FDUSD", "TUSD"];

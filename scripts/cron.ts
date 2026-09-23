@@ -49,7 +49,7 @@ async function syncHoldingsForUser(user: any) {
     filtered.map(async (balance) => {
       const sym = balance.asset.toUpperCase();
       const existing = await prisma.holding.findFirst({
-        where: { userId: user.id, asset: sym }
+        where: { userId: user.id, asset: sym, source: "binance" }
       });
       const avgBuyPrice = existing ? existing.avgBuyPrice : 0;
       if (existing) {

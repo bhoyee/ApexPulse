@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   const data = await req.json();
-  const { asset, amount, avgBuyPrice, tags, timestamp } = data;
+  const { asset, amount, avgBuyPrice, tags, timestamp, assetClass, market, source } = data;
   const amountNum = Number(amount);
   const avgNum = Number(avgBuyPrice);
   if (!asset || Number.isNaN(amountNum) || Number.isNaN(avgNum)) {
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     }
   }
 
+  const isStock = assetClass === "STOCK";
   const holding = await prisma.holding.create({
     data: {
       asset: asset.toUpperCase(),
@@ -45,6 +46,9 @@ export async function POST(req: Request) {
       avgBuyPrice: avgNum,
       tags,
       userId: session.user.id,
+      assetClass: isStock ? "STOCK" : "CRYPTO",
+      market: isStock ? market || "US" : null,
+      source: isStock ? source || "manual" : "binance",
       ...(createdAt ? { createdAt } : {})
     }
   });

@@ -15,6 +15,9 @@ interface Holding {
   avgBuyPrice: number;
   tags: string[];
   createdAt?: string;
+  assetClass?: string;
+  market?: string | null;
+  source?: string | null;
 }
 
 interface Price {
@@ -69,6 +72,9 @@ export function HoldingsTable({
   const [quantity, setQuantity] = useState("1");
   const [timestamp, setTimestamp] = useState("");
   const [buyPrice, setBuyPrice] = useState("1000");
+  const [assetClass, setAssetClass] = useState<"CRYPTO" | "STOCK">("CRYPTO");
+  const [market, setMarket] = useState<"US" | "NGX">("US");
+  const [source, setSource] = useState("bamboo");
 
   const { data: holdings = initialHoldings } = useQuery({
     queryKey: ["holdings"],
@@ -107,22 +113,27 @@ export function HoldingsTable({
           amount: qty,
           avgBuyPrice: buy,
           tags: [],
-          timestamp: timestamp || undefined
+          timestamp: timestamp || undefined,
+          assetClass,
+          ...(assetClass === "STOCK" ? { market, source } : {})
         })
       });
       if (!res.ok) throw new Error("Failed to add holding");
       const holding = await res.json();
-      // also create a BUY trade for history
-      await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symbol: asset.toUpperCase(),
-          quantity: qty,
-          price: buy,
-          executedAt: timestamp || undefined
-        })
-      });
+      // also create a BUY trade for history (crypto only -- stock trade
+      // history isn't tracked yet)
+      if (assetClass === "CRYPTO") {
+        await fetch("/api/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol: asset.toUpperCase(),
+            quantity: qty,
+            price: buy,
+            executedAt: timestamp || undefined
+          })
+        });
+      }
       return holding;
     },
     onSuccess: () => {
@@ -199,12 +210,53 @@ export function HoldingsTable({
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
+            <Label htmlFor="assetClass">Type</Label>
+            <select
+              id="assetClass"
+              className="w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm"
+              value={assetClass}
+              onChange={(e) => setAssetClass(e.target.value as "CRYPTO" | "STOCK")}
+            >
+              <option value="CRYPTO">Crypto (Binance)</option>
+              <option value="STOCK">Stock</option>
+            </select>
+          </div>
+          {assetClass === "STOCK" && (
+            <>
+              <div>
+                <Label htmlFor="market">Market</Label>
+                <select
+                  id="market"
+                  className="w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm"
+                  value={market}
+                  onChange={(e) => setMarket(e.target.value as "US" | "NGX")}
+                >
+                  <option value="US">US</option>
+                  <option value="NGX">NGX (Nigeria)</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="source">Broker</Label>
+                <select
+                  id="source"
+                  className="w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm"
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                >
+                  <option value="bamboo">Bamboo</option>
+                  <option value="cscs">CSCS / local broker</option>
+                  <option value="manual">Other</option>
+                </select>
+              </div>
+            </>
+          )}
+          <div>
             <Label htmlFor="asset">Symbol</Label>
             <Input
               id="asset"
               value={asset}
               onChange={(e) => setAsset(e.target.value.toUpperCase())}
-              placeholder="e.g. VET"
+              placeholder={assetClass === "STOCK" ? "e.g. DANGCEM or AAPL" : "e.g. VET"}
             />
           </div>
           <div>
@@ -302,7 +354,12 @@ export function HoldingsTable({
         {rows.map((row) => (
           <div key={row.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">{row.asset}</span>
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                {row.asset}
+                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-normal uppercase text-muted-foreground">
+                  {row.source ?? "binance"}
+                </span>
+              </span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -375,7 +432,14 @@ export function HoldingsTable({
           <tbody className="divide-y divide-white/5">
             {rows.map((row) => (
               <tr key={row.id} className="hover:bg-white/5">
-                <td className="px-4 py-3 font-semibold">{row.asset}</td>
+                <td className="px-4 py-3 font-semibold">
+                  <span className="flex items-center gap-2">
+                    {row.asset}
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-normal uppercase text-muted-foreground">
+                      {row.source ?? "binance"}
+                    </span>
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.invest ?? 0)}</td>
                 <td className="px-4 py-3 text-right">{Number(row.amount).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.current)}</td>

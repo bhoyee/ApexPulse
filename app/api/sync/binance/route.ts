@@ -113,7 +113,7 @@ export async function POST(req: Request) {
   await Promise.all(
     balancesToPersist.map(async (balance) => {
       const existing = await prisma.holding.findFirst({
-        where: { userId, asset: balance.asset }
+        where: { userId, asset: balance.asset, source: "binance" }
       });
       const avgBuyPrice = existing ? existing.avgBuyPrice : 0;
       if (existing) {

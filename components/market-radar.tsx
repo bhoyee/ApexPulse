@@ -16,6 +16,7 @@ import { formatCurrency } from "../lib/utils";
 interface Holding {
   asset: string;
   amount: number;
+  avgBuyPrice: number;
 }
 
 interface Price {
@@ -108,16 +109,23 @@ export function MarketRadar({
     return acc;
   }, {});
 
-  const data = holdings
+  // Price Glide: current market value per position (what it's worth NOW).
+  const barData = holdings
     .map((h) => {
       const price = priceMap[h.asset.toUpperCase()] ?? 0;
       return { symbol: h.asset.toUpperCase(), value: Number(h.amount) * price };
     })
     .filter((d) => d.value > minHoldingValueUsd);
 
-  // Per-symbol dataset for Recharts
-  const barData = data;
-  const donutData = data.map((d) => ({ name: d.symbol, value: d.value }));
+  // Dominance: cost basis per position (how much capital actually went INTO
+  // it). Deliberately different from Price Glide -- a coin/stock that mooned
+  // can dominate current value while barely showing up here, and vice versa.
+  const donutData = holdings
+    .map((h) => ({
+      name: h.asset.toUpperCase(),
+      value: Number(h.amount) * Number(h.avgBuyPrice ?? 0)
+    }))
+    .filter((d) => d.value > minHoldingValueUsd);
   const donutColors = donutData.map((_, i) => tremorColors[i % tremorColors.length]);
 
   return (
@@ -125,9 +133,7 @@ export function MarketRadar({
       <div className="chart-card bg-card border border-border p-4 text-card-foreground">
         <div className="mb-1 flex items-center justify-between">
           <h3 className="text-xs font-semibold text-muted-foreground">Price Glide</h3>
-          <span className="text-xs text-muted-foreground">
-            Holdings &gt; {formatCurrency(minHoldingValueUsd)}
-          </span>
+          <span className="text-xs text-muted-foreground">Current value</span>
         </div>
         <div className="mt-2 h-44 md:h-52">
           <ResponsiveContainer width="100%" height="100%">
@@ -150,7 +156,7 @@ export function MarketRadar({
       <div className="chart-card bg-card border border-border p-4 text-card-foreground">
         <div className="mb-1 flex items-center justify-between">
           <h3 className="text-xs font-semibold text-muted-foreground">Dominance</h3>
-          <span className="text-xs text-muted-foreground">Share by value</span>
+          <span className="text-xs text-muted-foreground">By cost invested</span>
         </div>
         <DonutChart
           className="mt-2 h-44 text-xs md:h-52"

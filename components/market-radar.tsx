@@ -78,12 +78,15 @@ async function fetchPrices(): Promise<Price[]> {
 
 export function MarketRadar({
   markets,
-  minHoldingValueUsd = 5
+  minHoldingValueUsd = 5,
+  symbols
 }: {
   markets: AssetSnapshot[];
   minHoldingValueUsd?: number;
+  /** Restrict the chart to this set of asset symbols (e.g. one dashboard section). Omit to include everything. */
+  symbols?: string[];
 }) {
-  const { data: holdings = [] } = useQuery({
+  const { data: allHoldings = [] } = useQuery({
     queryKey: ["holdings"],
     queryFn: fetchHoldings,
     initialData: [],
@@ -96,6 +99,9 @@ export function MarketRadar({
     initialData: markets.map((m) => ({ symbol: m.symbol, price: m.price })),
     refetchInterval: 15000
   });
+
+  const allowed = symbols ? new Set(symbols.map((s) => s.toUpperCase())) : null;
+  const holdings = allowed ? allHoldings.filter((h) => allowed.has(h.asset.toUpperCase())) : allHoldings;
 
   const priceMap = prices.reduce<Record<string, number>>((acc, p) => {
     acc[p.symbol.toUpperCase()] = p.price;

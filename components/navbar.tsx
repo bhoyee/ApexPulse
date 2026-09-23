@@ -21,7 +21,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-background/70 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+      <div className="flex w-full items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
         <Link href="/" className="font-semibold text-lg text-primary">
           ApexPulse
         </Link>

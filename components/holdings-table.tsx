@@ -1,10 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { formatCurrency } from "../lib/utils";
 import { toast } from "sonner";
 
@@ -52,20 +50,17 @@ async function fetchTrades(): Promise<Trade[]> {
   return res.json();
 }
 
-async function fetchStockQuote(symbol: string, market: string) {
-  const res = await fetch(`/api/stock-quote?symbol=${encodeURIComponent(symbol)}&market=${market}`);
-  if (!res.ok) return null;
-  return res.json() as Promise<{ quote: Price | null; currency: string }>;
-}
-
 export function HoldingsTable({
   initialHoldings,
   initialPrices,
-  minHoldingValueUsd = 5
+  minHoldingValueUsd = 5,
+  symbols
 }: {
   initialHoldings: Holding[];
   initialPrices: Price[];
   minHoldingValueUsd?: number;
+  /** Restrict the listing to this set of asset symbols (e.g. one dashboard section). Omit to include everything. */
+  symbols?: string[];
 }) {
   const client = useQueryClient();
   const [page, setPage] = useState(1);
@@ -73,16 +68,8 @@ export function HoldingsTable({
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<"value" | "asset">("value");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [asset, setAsset] = useState("BTC");
-  const [investmentUsd, setInvestmentUsd] = useState("1000");
-  const [quantity, setQuantity] = useState("1");
-  const [timestamp, setTimestamp] = useState("");
-  const [buyPrice, setBuyPrice] = useState("1000");
-  const [assetClass, setAssetClass] = useState<"CRYPTO" | "STOCK">("CRYPTO");
-  const [market, setMarket] = useState<"US" | "NGX">("US");
-  const [source, setSource] = useState("bamboo");
 
-  const { data: holdings = initialHoldings } = useQuery({
+  const { data: allHoldings = initialHoldings } = useQuery({
     queryKey: ["holdings"],
     queryFn: fetchHoldings,
     initialData: initialHoldings,
@@ -103,58 +90,6 @@ export function HoldingsTable({
     refetchInterval: 15000
   });
 
-  const { data: stockPreview } = useQuery({
-    queryKey: ["stock-quote", assetClass, asset, market],
-    queryFn: () => fetchStockQuote(asset, market),
-    enabled: assetClass === "STOCK" && asset.trim().length > 0
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const qty = Number(quantity);
-      const buy = Number(buyPrice) || (Number(investmentUsd) && qty ? Number(investmentUsd) / qty : 0);
-      if (!asset || !qty || !buy) {
-        throw new Error("Fill symbol, qty, and buy price/investment");
-      }
-      // create holding
-      const res = await fetch("/api/holdings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          asset: asset.toUpperCase(),
-          amount: qty,
-          avgBuyPrice: buy,
-          tags: [],
-          timestamp: timestamp || undefined,
-          assetClass,
-          ...(assetClass === "STOCK" ? { market, source } : {})
-        })
-      });
-      if (!res.ok) throw new Error("Failed to add holding");
-      const holding = await res.json();
-      // also create a BUY trade for history (crypto only -- stock trade
-      // history isn't tracked yet)
-      if (assetClass === "CRYPTO") {
-        await fetch("/api/transactions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            symbol: asset.toUpperCase(),
-            quantity: qty,
-            price: buy,
-            executedAt: timestamp || undefined
-          })
-        });
-      }
-      return holding;
-    },
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: ["holdings"] });
-      toast.success("Holding saved");
-    },
-    onError: (error: any) => toast.error(error.message)
-  });
-
   const removeMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/holdings/${id}`, { method: "DELETE" });
@@ -163,6 +98,9 @@ export function HoldingsTable({
     onSuccess: () => client.invalidateQueries({ queryKey: ["holdings"] }),
     onError: (error: any) => toast.error(error.message)
   });
+
+  const allowed = symbols ? new Set(symbols.map((s) => s.toUpperCase())) : null;
+  const holdings = allowed ? allHoldings.filter((h) => allowed.has(h.asset.toUpperCase())) : allHoldings;
 
   const priceMap = useMemo(
     () =>
@@ -211,141 +149,8 @@ export function HoldingsTable({
   const totalValue = rows.reduce((t, r) => t + r.current, 0);
   const totalInvest = rows.reduce((t, r) => t + (r.invest ?? 0), 0);
 
-  const isNgx = assetClass === "STOCK" && market === "NGX";
-  const currencyLabel = isNgx ? "NGN" : "USD";
-  const currentPrice =
-    assetClass === "STOCK"
-      ? stockPreview?.quote?.price ?? 0
-      : priceMap[asset.toUpperCase()]?.price ?? 0;
-  const presentValue = (Number(quantity) || 0) * currentPrice;
-
   return (
     <div className="space-y-4">
-      <div className="glass rounded-xl p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-muted-foreground">Add manual position</h3>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <Label htmlFor="assetClass">Type</Label>
-            <select
-              id="assetClass"
-              className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-foreground"
-              value={assetClass}
-              onChange={(e) => setAssetClass(e.target.value as "CRYPTO" | "STOCK")}
-            >
-              <option value="CRYPTO">Crypto (Binance)</option>
-              <option value="STOCK">Stock</option>
-            </select>
-          </div>
-          {assetClass === "STOCK" && (
-            <>
-              <div>
-                <Label htmlFor="market">Market</Label>
-                <select
-                  id="market"
-                  className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-foreground"
-                  value={market}
-                  onChange={(e) => setMarket(e.target.value as "US" | "NGX")}
-                >
-                  <option value="US">US</option>
-                  <option value="NGX">NGX (Nigeria)</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="source">Broker</Label>
-                <select
-                  id="source"
-                  className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-foreground"
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                >
-                  <option value="bamboo">Bamboo</option>
-                  <option value="cscs">CSCS / local broker</option>
-                  <option value="manual">Other</option>
-                </select>
-              </div>
-            </>
-          )}
-          <div>
-            <Label htmlFor="asset">Symbol</Label>
-            <Input
-              id="asset"
-              value={asset}
-              onChange={(e) => setAsset(e.target.value.toUpperCase())}
-              placeholder={assetClass === "STOCK" ? "e.g. DANGCEM or AAPL" : "e.g. VET"}
-            />
-          </div>
-          <div>
-            <Label htmlFor="investment">Investment ({currencyLabel})</Label>
-            <Input
-              id="investment"
-              value={investmentUsd}
-              onChange={(e) => setInvestmentUsd(e.target.value)}
-              type="number"
-              min="0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="qty">Quantity</Label>
-            <Input
-              id="qty"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              type="number"
-              step="0.0001"
-              min="0"
-            />
-          </div>
-          <div>
-            <Label htmlFor="buy">Buy price ({currencyLabel})</Label>
-            <Input
-              id="buy"
-              value={buyPrice}
-              onChange={(e) => setBuyPrice(e.target.value)}
-              type="number"
-              step="0.0001"
-              min="0"
-            />
-            {isNgx && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Converted to USD automatically at today&apos;s rate when saved.
-              </p>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="ts">Date/Time (optional)</Label>
-            <Input
-              id="ts"
-              value={timestamp}
-              onChange={(e) => setTimestamp(e.target.value)}
-              type="datetime-local"
-            />
-          </div>
-          <div>
-            <Label>Current price</Label>
-            <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm">
-              {currentPrice
-                ? formatCurrency(currentPrice, currencyLabel)
-                : assetClass === "STOCK" && asset.trim()
-                  ? "Looking up..."
-                  : "-"}
-            </div>
-          </div>
-          <div>
-            <Label>Present value (auto)</Label>
-            <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm">
-              {presentValue ? formatCurrency(presentValue, currencyLabel) : "-"}
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 flex justify-end">
-          <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-            {createMutation.isPending ? "Saving..." : "Save position"}
-          </Button>
-        </div>
-      </div>
-
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <input
           className="w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm sm:w-64"
@@ -359,7 +164,7 @@ export function HoldingsTable({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>Sort by</span>
           <select
-            className="rounded-md border border-white/10 bg-transparent px-2 py-1 text-sm"
+            className="rounded-md border border-white/10 bg-background px-2 py-1 text-sm text-foreground"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as any)}
           >
@@ -416,6 +221,11 @@ export function HoldingsTable({
             )}
           </div>
         ))}
+        {!rows.length && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+            No holdings here yet.
+          </div>
+        )}
         <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
           <div className="flex items-center justify-between">
             <span className="font-semibold">Total</span>
@@ -481,6 +291,13 @@ export function HoldingsTable({
                 </td>
               </tr>
             ))}
+            {!rows.length && (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  No holdings here yet.
+                </td>
+              </tr>
+            )}
           </tbody>
           <tfoot className="bg-white/5">
             <tr>
@@ -514,4 +331,3 @@ export function HoldingsTable({
     </div>
   );
 }
-

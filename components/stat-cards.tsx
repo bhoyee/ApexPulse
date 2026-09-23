@@ -1,7 +1,17 @@
-import { Activity, BarChart3, Bitcoin, Coins, DollarSign, Wallet } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  Bitcoin,
+  Coins,
+  DollarSign,
+  Layers,
+  TrendingUp,
+  Wallet
+} from "lucide-react";
 import { formatCurrency, formatPercent } from "../lib/utils";
 
-interface StatProps {
+interface CryptoStats {
+  variant?: "crypto";
   portfolioValue: number;
   change24h: number;
   overallPnl: number;
@@ -10,55 +20,80 @@ interface StatProps {
   totalStables: number;
 }
 
-const icons = {
-  value: Wallet,
-  change: Activity,
-  overall: BarChart3,
-  invested: DollarSign,
-  btc: Bitcoin,
-  stables: Coins
-};
+interface StockStats {
+  variant: "stock";
+  portfolioValue: number;
+  change24h: number;
+  overallPnl: number;
+  totalInvested: number;
+  positions: number;
+  bestMover?: { symbol: string; change: number };
+}
+
+type StatProps = CryptoStats | StockStats;
 
 export function StatCards({ stats }: { stats: StatProps }) {
-  const items = [
+  const base = [
     {
       label: "Portfolio",
       value: formatCurrency(stats.portfolioValue),
       helper: "Live valuation",
-      icon: icons.value
+      icon: Wallet
     },
     {
       label: "24h Change",
       value: formatPercent(stats.change24h),
       helper: "Cross-asset delta",
-      icon: icons.change
+      icon: Activity
     },
     {
       label: "Overall PnL",
       value: formatCurrency(stats.overallPnl),
       helper: "Total vs cost basis",
-      icon: icons.overall,
+      icon: BarChart3,
       tone: stats.overallPnl >= 0 ? "text-emerald-400" : "text-rose-400"
     },
     {
       label: "Total Invested",
       value: formatCurrency(stats.totalInvested),
       helper: "All-time cost basis",
-      icon: icons.invested
-    },
-    {
-      label: "BTC Price",
-      value: formatCurrency(stats.btcPrice),
-      helper: "Live BTC/USDT",
-      icon: icons.btc
-    },
-    {
-      label: "Stable Balance",
-      value: formatCurrency(stats.totalStables),
-      helper: "USDT/FDUSD/USDC/etc.",
-      icon: icons.stables
+      icon: DollarSign
     }
   ];
+
+  const items =
+    stats.variant === "stock"
+      ? [
+          ...base,
+          {
+            label: "Positions",
+            value: String(stats.positions),
+            helper: "Open holdings",
+            icon: Layers
+          },
+          {
+            label: "Best Mover",
+            value: stats.bestMover ? formatPercent(stats.bestMover.change) : "-",
+            helper: stats.bestMover ? stats.bestMover.symbol : "No data yet",
+            icon: TrendingUp,
+            tone: stats.bestMover && stats.bestMover.change >= 0 ? "text-emerald-400" : "text-rose-400"
+          }
+        ]
+      : [
+          ...base,
+          {
+            label: "BTC Price",
+            value: formatCurrency(stats.btcPrice),
+            helper: "Live BTC/USDT",
+            icon: Bitcoin
+          },
+          {
+            label: "Stable Balance",
+            value: formatCurrency(stats.totalStables),
+            helper: "USDT/FDUSD/USDC/etc.",
+            icon: Coins
+          }
+        ];
 
   return (
     <div className="card-grid">

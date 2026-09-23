@@ -61,13 +61,24 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+enum AssetClass {
+  CRYPTO
+  STOCK
+}
+
 model Holding {
   id           String         @id @default(cuid())
   userId       String
   asset        String
   amount       Decimal        @db.Decimal(18, 8)
   avgBuyPrice  Decimal        @db.Decimal(18, 8)
-  chain        String?        @default("binance")
+  assetClass   AssetClass     @default(CRYPTO)
+  // For STOCK holdings: "US" or "NGX" (determines which price source to query).
+  market       String?
+  // Where this position came from: "binance", "trading212" (both auto-synced),
+  // or "bamboo"/"cscs"/"manual" for one-time hand-entered positions that still
+  // get their price auto-refreshed going forward.
+  source       String?        @default("binance")
   tags         String[]       @default([])
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -98,6 +109,8 @@ model ApiSetting {
   fullName          String?
   binanceApiKey     String?
   binanceApiSecret  String?
+  trading212ApiKey    String?
+  trading212ApiSecret String?
   grokApiKey        String?
   openaiApiKey      String?
   deepseekApiKey    String?

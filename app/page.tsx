@@ -189,11 +189,13 @@ export default async function DashboardPage() {
         minHoldingValueUsd={minHoldingValueUsd}
         symbols={ngxSymbols}
         variant="stock"
+        displayCurrency="NGN"
       />
       <MarketRadar
         markets={holdingsWithValue.filter((h) => ngxSymbols.includes(h.symbol.toUpperCase())) as any}
         minHoldingValueUsd={minHoldingValueUsd}
         symbols={ngxSymbols}
+        displayCurrency="NGN"
       />
       <AddPositionForm
         title="Add Bamboo / NGX position"
@@ -207,6 +209,7 @@ export default async function DashboardPage() {
         initialPrices={markets as any}
         minHoldingValueUsd={minHoldingValueUsd}
         symbols={ngxSymbols}
+        displayCurrency="NGN"
       />
     </>
   );

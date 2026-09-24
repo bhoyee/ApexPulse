@@ -12,6 +12,7 @@ import {
   Cell
 } from "recharts";
 import { formatCurrency } from "../lib/utils";
+import { useFxRate } from "../lib/use-fx-rate";
 
 interface Holding {
   asset: string;
@@ -93,13 +94,17 @@ async function fetchTrades(): Promise<Trade[]> {
 export function MarketRadar({
   markets,
   minHoldingValueUsd = 5,
-  symbols
+  symbols,
+  displayCurrency = "USD"
 }: {
   markets: AssetSnapshot[];
   minHoldingValueUsd?: number;
   /** Restrict the chart to this set of asset symbols (e.g. one dashboard section). Omit to include everything. */
   symbols?: string[];
+  /** Everything is stored/calculated in USD; this only converts the final displayed numbers (e.g. "NGN" for the NGX section). */
+  displayCurrency?: string;
 }) {
+  const fxRate = useFxRate(displayCurrency);
   const { data: allHoldings = [] } = useQuery({
     queryKey: ["holdings"],
     queryFn: fetchHoldings,
@@ -133,9 +138,9 @@ export function MarketRadar({
   const barData = holdings
     .map((h) => {
       const price = priceMap[h.asset.toUpperCase()] ?? 0;
-      return { symbol: h.asset.toUpperCase(), value: Number(h.amount) * price };
+      return { symbol: h.asset.toUpperCase(), value: Number(h.amount) * price * fxRate };
     })
-    .filter((d) => d.value > minHoldingValueUsd);
+    .filter((d) => d.value > minHoldingValueUsd * fxRate);
 
   // Dominance: cost basis per position (how much capital actually went INTO
   // it). Deliberately different from Price Glide -- a coin/stock that mooned
@@ -159,9 +164,9 @@ export function MarketRadar({
     .map((h) => {
       const sym = h.asset.toUpperCase();
       const value = investedBySymbol.get(sym) ?? Number(h.amount) * Number(h.avgBuyPrice ?? 0);
-      return { name: sym, value };
+      return { name: sym, value: value * fxRate };
     })
-    .filter((d) => d.value > minHoldingValueUsd);
+    .filter((d) => d.value > minHoldingValueUsd * fxRate);
   const donutColors = donutData.map((_, i) => tremorColors[i % tremorColors.length]);
 
   return (
@@ -177,9 +182,9 @@ export function MarketRadar({
               <XAxis dataKey="symbol" tick={{ fontSize: 11 }} />
               <YAxis
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => formatCurrency(Number(v)).replace("$", "")}
+                tickFormatter={(v) => formatCurrency(Number(v), displayCurrency).replace(/^\D+/, "")}
               />
-              <RTooltip formatter={(val) => formatCurrency(Number(val))} />
+              <RTooltip formatter={(val) => formatCurrency(Number(val), displayCurrency)} />
               <Bar dataKey="value">
                 {barData.map((entry, index) => (
                   <Cell key={entry.symbol} fill={colors[index % colors.length]} />
@@ -200,7 +205,7 @@ export function MarketRadar({
           category="value"
           index="name"
           colors={donutColors}
-          valueFormatter={(n) => formatCurrency(Number(n))}
+          valueFormatter={(n) => formatCurrency(Number(n), displayCurrency)}
         />
       </div>
     </div>

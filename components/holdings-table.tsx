@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./ui/button";
 import { formatCurrency } from "../lib/utils";
+import { useFxRate } from "../lib/use-fx-rate";
 import { toast } from "sonner";
 
 interface Holding {
@@ -54,15 +55,20 @@ export function HoldingsTable({
   initialHoldings,
   initialPrices,
   minHoldingValueUsd = 5,
-  symbols
+  symbols,
+  displayCurrency = "USD"
 }: {
   initialHoldings: Holding[];
   initialPrices: Price[];
   minHoldingValueUsd?: number;
   /** Restrict the listing to this set of asset symbols (e.g. one dashboard section). Omit to include everything. */
   symbols?: string[];
+  /** Everything is stored/calculated in USD; this only converts the final displayed numbers (e.g. "NGN" for the NGX section). */
+  displayCurrency?: string;
 }) {
   const client = useQueryClient();
+  const fxRate = useFxRate(displayCurrency);
+  const fmt = (usdValue: number) => formatCurrency(usdValue * fxRate, displayCurrency);
   const [page, setPage] = useState(1);
   const pageSize = 8;
   const [search, setSearch] = useState("");
@@ -203,7 +209,7 @@ export function HoldingsTable({
             <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               <div>
                 <p>Invest</p>
-                <p className="text-foreground">{formatCurrency(row.invest ?? 0)}</p>
+                <p className="text-foreground">{fmt(row.invest ?? 0)}</p>
               </div>
               <div>
                 <p>Amount</p>
@@ -211,7 +217,7 @@ export function HoldingsTable({
               </div>
               <div>
                 <p>Value</p>
-                <p className="text-foreground">{formatCurrency(row.current)}</p>
+                <p className="text-foreground">{fmt(row.current)}</p>
               </div>
             </div>
             {row.createdAt && (
@@ -229,7 +235,7 @@ export function HoldingsTable({
         <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
           <div className="flex items-center justify-between">
             <span className="font-semibold">Total</span>
-            <span>{formatCurrency(totalValue)}</span>
+            <span>{fmt(totalValue)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -276,9 +282,9 @@ export function HoldingsTable({
                     </span>
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">{formatCurrency(row.invest ?? 0)}</td>
+                <td className="px-4 py-3 text-right">{fmt(row.invest ?? 0)}</td>
                 <td className="px-4 py-3 text-right">{Number(row.amount).toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(row.current)}</td>
+                <td className="px-4 py-3 text-right">{fmt(row.current)}</td>
                 <td className="px-4 py-3 text-right">
                   <Button
                     variant="ghost"
@@ -302,8 +308,8 @@ export function HoldingsTable({
           <tfoot className="bg-white/5">
             <tr>
               <td className="px-4 py-3 font-semibold">Total</td>
-              <td className="px-4 py-3 text-right font-semibold">{formatCurrency(totalInvest)}</td>
-              <td className="px-4 py-3 text-right font-semibold">{formatCurrency(totalValue)}</td>
+              <td className="px-4 py-3 text-right font-semibold">{fmt(totalInvest)}</td>
+              <td className="px-4 py-3 text-right font-semibold">{fmt(totalValue)}</td>
               <td />
             </tr>
           </tfoot>

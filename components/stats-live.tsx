@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { StatCards } from "./stat-cards";
+import { useFxRate } from "../lib/use-fx-rate";
 
 interface Holding {
   asset: string;
@@ -50,7 +51,8 @@ export function StatsLive({
   initialTrades,
   minHoldingValueUsd = 5,
   symbols,
-  variant = "crypto"
+  variant = "crypto",
+  displayCurrency = "USD"
 }: {
   initialHoldings: Holding[];
   initialPrices: Price[];
@@ -59,7 +61,10 @@ export function StatsLive({
   /** Restrict all stats to this set of asset symbols (e.g. one dashboard section). Omit to include everything. */
   symbols?: string[];
   variant?: "crypto" | "stock";
+  /** Everything is stored/calculated in USD; this only converts the final displayed numbers (e.g. "NGN" for the NGX section). */
+  displayCurrency?: string;
 }) {
+  const fxRate = useFxRate(displayCurrency);
   const { data: allHoldings = initialHoldings } = useQuery({
     queryKey: ["holdings"],
     queryFn: fetchHoldings,
@@ -164,10 +169,11 @@ export function StatsLive({
       <StatCards
         stats={{
           variant: "stock",
-          portfolioValue,
+          currency: displayCurrency,
+          portfolioValue: portfolioValue * fxRate,
           change24h,
-          overallPnl,
-          totalInvested,
+          overallPnl: overallPnl * fxRate,
+          totalInvested: totalInvested * fxRate,
           positions: holdings.filter((h) => Number(h.amount) > 0).length,
           bestMover
         }}

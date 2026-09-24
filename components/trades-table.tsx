@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { formatCurrency } from "../lib/utils";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface Trade {
   id: string;
@@ -307,13 +308,14 @@ export function TradesTable({
                   </p>
                 </div>
                 <div className="col-span-2 flex justify-end">
-                  <button
-                    className="text-destructive"
+                  <Button
+                    variant="destructive"
+                    size="sm"
                     onClick={() => deleteMutation.mutate(t.id)}
                     disabled={deleteMutation.isPending}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -365,12 +367,14 @@ export function TradesTable({
                     {new Date(t.executedAt).toLocaleString()}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <button
-                      className="text-destructive underline-offset-2 hover:underline"
+                    <Button
+                      variant="destructive"
+                      size="sm"
                       onClick={() => deleteMutation.mutate(t.id)}
+                      disabled={deleteMutation.isPending}
                     >
                       Remove
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               );

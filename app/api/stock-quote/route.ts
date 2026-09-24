@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "../../../lib/auth";
+import { prisma } from "../../../lib/prisma";
 import { getStockQuotes } from "../../../lib/stocks";
 import { getUsdRate } from "../../../lib/fx";
 
@@ -19,7 +20,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "symbol is required" }, { status: 400 });
   }
 
-  const quotes = await getStockQuotes([symbol], market);
+  const settings = await prisma.apiSetting.findUnique({ where: { userId: session.user.id } });
+  const quotes = await getStockQuotes([symbol], market, {
+    mansaApiKey: settings?.mansaApiKey ?? undefined
+  });
   let quote = quotes.find((q) => q.symbol === symbol) ?? null;
 
   // getStockQuotes always returns USD (getNgxStockQuotes converts its raw

@@ -43,7 +43,9 @@ export default async function DashboardPage() {
 
   let markets =
     symbolsAll.length > 0
-      ? await getPricesForHoldings(holdings, tradeSymbols)
+      ? await getPricesForHoldings(holdings, tradeSymbols, {
+          mansaApiKey: settings?.mansaApiKey ?? undefined
+        })
       : [];
 
   if (!markets.length) {

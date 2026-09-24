@@ -117,6 +117,7 @@ model ApiSetting {
   binanceApiSecret  String?
   trading212ApiKey    String?
   trading212ApiSecret String?
+  mansaApiKey       String?
   grokApiKey        String?
   openaiApiKey      String?
   deepseekApiKey    String?

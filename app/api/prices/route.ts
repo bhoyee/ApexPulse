@@ -9,12 +9,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [holdings, trades] = await Promise.all([
+  const [holdings, trades, settings] = await Promise.all([
     prisma.holding.findMany({ where: { userId: session.user.id } }),
     prisma.transaction.findMany({
       where: { userId: session.user.id, type: "BUY" },
       select: { symbol: true }
-    })
+    }),
+    prisma.apiSetting.findUnique({ where: { userId: session.user.id } })
   ]);
 
   // Transaction history is crypto-only today (stocks don't sync trades yet),
@@ -26,7 +27,8 @@ export async function GET() {
 
   const markets = await getPricesForHoldings(
     holdings,
-    tradeSymbols.length ? tradeSymbols : symbols.length ? [] : ["BTC", "ETH", "SOL"]
+    tradeSymbols.length ? tradeSymbols : symbols.length ? [] : ["BTC", "ETH", "SOL"],
+    { mansaApiKey: settings?.mansaApiKey ?? undefined }
   );
 
   // ensure stables always have price 1

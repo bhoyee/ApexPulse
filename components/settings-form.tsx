@@ -15,6 +15,7 @@ const schema = z.object({
   binanceApiSecret: z.string().optional(),
   trading212ApiKey: z.string().optional(),
   trading212ApiSecret: z.string().optional(),
+  mansaApiKey: z.string().optional(),
   openaiApiKey: z.string().optional(),
   deepseekApiKey: z.string().optional(),
   resendApiKey: z.string().optional(),
@@ -97,6 +98,22 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
           />
           <p className="text-xs text-muted-foreground">
             Generate both in the Trading 212 app under Settings &rarr; API (Beta).
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="mansaApiKey">Mansa API Key (NGX prices)</Label>
+          <Input id="mansaApiKey" type="password" {...form.register("mansaApiKey")} placeholder="mansa_live_sk_..." />
+          <p className="text-xs text-muted-foreground">
+            Free at{" "}
+            <a
+              href="https://mansaapi.com/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              mansaapi.com
+            </a>{" "}
+            (100 req/day, no card). Without a key, NGX prices fall back to a free scraper.
           </p>
         </div>
         <div className="space-y-2">

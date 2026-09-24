@@ -29,6 +29,7 @@ export async function PUT(req: Request) {
     binanceApiSecret: body.binanceApiSecret || null,
     trading212ApiKey: body.trading212ApiKey || null,
     trading212ApiSecret: body.trading212ApiSecret || null,
+    mansaApiKey: body.mansaApiKey || null,
     grokApiKey: null,
     openaiApiKey: body.openaiApiKey || null,
     deepseekApiKey: body.deepseekApiKey || null,

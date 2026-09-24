@@ -1,4 +1,5 @@
 import { getUsdRate } from "./fx";
+import { getMansaNgxQuotes } from "./mansa";
 
 export interface StockQuote {
   symbol: string;
@@ -155,7 +156,24 @@ export async function getNgxStockQuotes(symbols: string[]): Promise<StockQuote[]
   }));
 }
 
-export async function getStockQuotes(symbols: string[], market: string): Promise<StockQuote[]> {
+export async function getStockQuotes(
+  symbols: string[],
+  market: string,
+  opts?: { mansaApiKey?: string }
+): Promise<StockQuote[]> {
   if (!symbols.length) return [];
-  return market === "NGX" ? getNgxStockQuotes(symbols) : getUsStockQuotes(symbols);
+  if (market !== "NGX") return getUsStockQuotes(symbols);
+
+  if (!opts?.mansaApiKey) return getNgxStockQuotes(symbols);
+
+  // Mansa (structured, documented API) is primary when a key is configured;
+  // the free scraper fills in anything Mansa's response didn't cover
+  // (unrecognized field shape, ticker not in their universe, rate-limited).
+  const mansaResults = await getMansaNgxQuotes(symbols, opts.mansaApiKey);
+  const covered = new Set(mansaResults.map((q) => q.symbol));
+  const missing = symbols.filter((s) => !covered.has(s.toUpperCase()));
+  if (!missing.length) return mansaResults;
+
+  const scraped = await getNgxStockQuotes(missing);
+  return [...mansaResults, ...scraped];
 }

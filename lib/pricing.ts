@@ -16,7 +16,11 @@ export interface HoldingRef {
 // change24h, volume, high, low}[] list -- this fans a mixed crypto+stock
 // holdings set out to the right source per asset and merges the results back
 // into that same shape, so no component needs to know an asset is a stock.
-export async function getPricesForHoldings(holdings: HoldingRef[], extraCryptoSymbols: string[] = []) {
+export async function getPricesForHoldings(
+  holdings: HoldingRef[],
+  extraCryptoSymbols: string[] = [],
+  opts?: { mansaApiKey?: string }
+) {
   const cryptoSymbols = new Set(extraCryptoSymbols.map((s) => s.toUpperCase()));
   const stocksByMarket = new Map<string, Set<string>>();
   // Trading212 positions are reported in their own instrument currency
@@ -45,7 +49,7 @@ export async function getPricesForHoldings(holdings: HoldingRef[], extraCryptoSy
   const [cryptoMarkets, ...stockMarkets] = await Promise.all([
     getMarketTickers(Array.from(cryptoSymbols)),
     ...Array.from(stocksByMarket.entries()).map(([market, symbols]) =>
-      getStockQuotes(Array.from(symbols), market)
+      getStockQuotes(Array.from(symbols), market, opts)
     )
   ]);
 

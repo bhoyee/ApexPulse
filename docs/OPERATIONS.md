@@ -15,8 +15,9 @@
 - prisma studio (host): `set DATABASE_URL=postgresql://apexpulse:apexpulse@localhost:5442/apexpulse && npx prisma studio --hostname 127.0.0.1 --port 5557`
 
 ## Sync cadence
-- Auto: cron container uses `CRON_INTERVAL_SECONDS`
-- Manual refresh: click **Sync Binance** in the dashboard.
+- Crypto: cron container auto-syncs on `CRON_INTERVAL_SECONDS`.
+- Trading 212: manual only, via **Sync Trading 212 now** in Settings.
+- Nigeria Stock: automatic on every dashboard load (no sync button -- these are one-time-entered positions, not synced from a broker account).
 
 ## Env knobs
 - `BINANCE_MIN_VALUE_USD` (0 keeps all balances)

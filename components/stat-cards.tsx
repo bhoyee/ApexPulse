@@ -12,6 +12,7 @@ import { formatCurrency, formatPercent } from "../lib/utils";
 
 interface CryptoStats {
   variant?: "crypto";
+  currency?: string;
   portfolioValue: number;
   change24h: number;
   overallPnl: number;
@@ -22,6 +23,7 @@ interface CryptoStats {
 
 interface StockStats {
   variant: "stock";
+  currency?: string;
   portfolioValue: number;
   change24h: number;
   overallPnl: number;
@@ -33,10 +35,11 @@ interface StockStats {
 type StatProps = CryptoStats | StockStats;
 
 export function StatCards({ stats }: { stats: StatProps }) {
+  const currency = stats.currency ?? "USD";
   const base = [
     {
       label: "Portfolio",
-      value: formatCurrency(stats.portfolioValue),
+      value: formatCurrency(stats.portfolioValue, currency),
       helper: "Live valuation",
       icon: Wallet
     },
@@ -48,14 +51,14 @@ export function StatCards({ stats }: { stats: StatProps }) {
     },
     {
       label: "Overall PnL",
-      value: formatCurrency(stats.overallPnl),
+      value: formatCurrency(stats.overallPnl, currency),
       helper: "Total vs cost basis",
       icon: BarChart3,
       tone: stats.overallPnl >= 0 ? "text-emerald-400" : "text-rose-400"
     },
     {
       label: "Total Invested",
-      value: formatCurrency(stats.totalInvested),
+      value: formatCurrency(stats.totalInvested, currency),
       helper: "All-time cost basis",
       icon: DollarSign
     }
@@ -83,13 +86,13 @@ export function StatCards({ stats }: { stats: StatProps }) {
           ...base,
           {
             label: "BTC Price",
-            value: formatCurrency(stats.btcPrice),
+            value: formatCurrency(stats.btcPrice, currency),
             helper: "Live BTC/USDT",
             icon: Bitcoin
           },
           {
             label: "Stable Balance",
-            value: formatCurrency(stats.totalStables),
+            value: formatCurrency(stats.totalStables, currency),
             helper: "USDT/FDUSD/USDC/etc.",
             icon: Coins
           }

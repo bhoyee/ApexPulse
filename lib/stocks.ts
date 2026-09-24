@@ -1,3 +1,5 @@
+import { getUsdRate } from "./fx";
+
 export interface StockQuote {
   symbol: string;
   price: number;
@@ -77,6 +79,12 @@ async function fetchNgxPage(url: string): Promise<{ rows: Map<string, StockQuote
 // page structure changes or the site is down, this returns an empty/partial
 // result rather than throwing, and callers should fall back to the holding's
 // last-known/avg-buy price rather than fail outright.
+//
+// The scraped prices are in Naira. Every other price source in this app
+// (Binance, Yahoo, Trading212's converted snapshot) returns USD, and every
+// caller (portfolio value, PnL, the Invest column) assumes USD -- so this
+// converts here, once, rather than leaking raw NGN into USD-denominated
+// math. The NGX dashboard tab then converts back to NGN purely for display.
 export async function getNgxStockQuotes(symbols: string[]): Promise<StockQuote[]> {
   const wanted = new Set(symbols.map((s) => s.toUpperCase()));
   const found = new Map<string, StockQuote>();
@@ -96,7 +104,15 @@ export async function getNgxStockQuotes(symbols: string[]): Promise<StockQuote[]
     // best-effort: return whatever was found before the failure
   }
 
-  return Array.from(found.values());
+  if (!found.size) return [];
+
+  const usdPerNgn = await getUsdRate("NGN"); // USD value of 1 NGN
+  return Array.from(found.values()).map((q) => ({
+    ...q,
+    price: q.price * usdPerNgn,
+    high: q.high * usdPerNgn,
+    low: q.low * usdPerNgn
+  }));
 }
 
 export async function getStockQuotes(symbols: string[], market: string): Promise<StockQuote[]> {

@@ -1,21 +1,29 @@
-# ApexPulse -- Self-Hosted Crypto Portfolio + AI Swing Trader Signal
+# ApexPulse -- Self-Hosted Crypto + Trading 212 + Nigeria Stock Dashboard with AI Swing Signals
 
 ![ApexPulse](public/logo.svg)
 
-ApexPulse is a production-ready crypto command center: Next.js 15 (App Router), Tailwind + shadcn/ui, Tremor 3.0 charts, TanStack Query v5, Prisma + Postgres, NextAuth v5, OpenAI primary with DeepSeek fallback, Resend daily briefs, and full Docker support from day one.
+ApexPulse is a production-ready, multi-asset investing dashboard: crypto (Binance, auto-synced),
+Trading 212 (auto-synced via their official API), and Nigeria Stock Exchange positions (Bamboo/CSCS,
+tracked with live NGX pricing) -- each in its own tab with its own stat cards and charts, plus
+AI swing signals grounded in real market data. Built on Next.js 15 (App Router), Tailwind + shadcn/ui,
+Tremor 3.0 + Recharts, TanStack Query v5, Prisma + Postgres, NextAuth v5, OpenAI primary with DeepSeek
+fallback, Resend daily briefs, and full Docker support from day one.
 
 ## Tech
 - **Next.js 15 (App Router) + TypeScript:** full-stack app with typed API routes, server components, and strict types for safety.
 - **TailwindCSS + shadcn/ui + lucide-react:** consistent, fast UI build with accessible components and iconography.
-- **Tremor + Recharts:** professional charting (dominance + price glide) with responsive visuals.
-- **TanStack Query v5:** real-time-ish data fetching, caching, and background refresh.
+- **Tremor + Recharts:** Price Glide (current value) and Dominance (cost basis) charts, scoped per dashboard tab.
+- **TanStack Query v5:** background refresh, shared cache across tabs, instant UI updates after any add/sync/remove.
 - **React Hook Form + Zod + next-themes:** validated forms, schema safety, and theming.
 - **Prisma ORM + PostgreSQL:** clean data modeling + durable relational storage.
 - **NextAuth v5 (Credentials + Google):** secure login and session management.
-- **Binance Spot API (REST):** holdings, trades, and market prices.
-- **DeepSeek primary → OpenAI fallback:** AI swing signals with fallback reliability.
+- **Binance Spot API (REST):** crypto holdings, trades, and market prices, auto-synced.
+- **Trading 212 Public API:** stock/ETF positions and order history, auto-synced via a personal API key (read-only).
+- **Mansa API + free NGX scraper fallback:** live Nigeria Stock Exchange prices, converted to USD internally and displayed in Naira.
+- **Yahoo Finance (free, no key):** US stock quotes and the FX rates used to convert GBP/NGN to USD.
+- **OpenAI primary → DeepSeek fallback:** AI swing signals grounded in real Binance market data, gated at 80%+ confidence.
 - **Resend + React Email:** transactional daily signals email.
-- **Docker + docker-compose:** one-command local/dev/prod parity; optional Redis for caching later.
+- **Docker + docker-compose:** one-command local/dev/prod parity, version-stamped builds, optional Redis for caching later.
 
 ### Default Ports (avoids 3000/3300/5433/15432)
 - App: `3100`
@@ -45,7 +53,10 @@ npm run docker:build   # stamps GIT_COMMIT/BUILD_DATE, then docker compose build
 docker compose up
 ```
 
-Visit http://localhost:3100. Seed admin (if provided) is created via `prisma/seed.js`. After adding Binance API key/secret in **Settings**, the cron worker auto-syncs (default every 5m via `CRON_INTERVAL_SECONDS`), and you can also click **Sync Binance** on the dashboard holdings card for an immediate refresh.
+Visit http://localhost:3100. Seed admin (if provided) is created via `prisma/seed.js`. Set up each asset class in **Settings**:
+- **Crypto:** add Binance API key/secret -- the cron worker auto-syncs (default every 5m via `CRON_INTERVAL_SECONDS`).
+- **Trading 212:** add your API key + secret (generated in the Trading 212 app under Settings -> API Beta), then click **Sync Trading 212 now**.
+- **Nigeria Stock (NGX):** add positions once from the dashboard's NGX tab (symbol, quantity, avg cost) -- price then auto-refreshes on every load. Optionally add a free Mansa API key for more reliable NGX pricing than the built-in scraper fallback.
 
 ## Local Dev (without Docker)
 ```bash
@@ -70,19 +81,25 @@ Generate Prisma client if needed: `npx prisma generate`. Seed sample data: `npm 
 - Login page: `/login`. Middleware protects everything else.
 
 ## Providers
-- **Binance:** `BINANCE_API_KEY`, `BINANCE_API_SECRET` for live balances.
+Global (env vars, `.env`):
 - **OpenAI (primary):** `OPENAI_API_KEY` -> model `gpt-4o-mini`.
 - **DeepSeek (fallback):** `DEEPSEEK_API_KEY` -> model `deepseek-chat`.
 - **Resend:** `RESEND_API_KEY`, `RESEND_FROM`. Daily brief uses React Email template.
 - **Binance refresh:** `BINANCE_MIN_VALUE_USD` (default 0 to include all balances), `CRON_INTERVAL_SECONDS` (default 300s ~5m auto-sync).
 
+Per-user (entered in **Settings**, stored in the database, not env vars):
+- **Binance:** API key + secret for live crypto balances/trades.
+- **Trading 212:** API key + secret (Trading 212 app -> Settings -> API Beta). Read-only, auto-syncs positions and order history.
+- **Mansa API** (optional): free key from [mansaapi.com](https://mansaapi.com/docs) (100 req/day, no card) for more reliable NGX stock prices than the built-in free scraper fallback.
+
 ## Cron / Automations
 - A dedicated `cron` service in `docker-compose.yml` runs `npm run cron` (TSX + Prisma) to:
-  - Pull latest market snapshot from Binance
-  - Sync holdings (auto) from Binance before signals
-- Generate five 24-72h swing signals (OpenAI -> DeepSeek -> deterministic fallback)
+  - Sync Binance crypto holdings for each user
+  - Pull a real, liquid market snapshot (top-volume Binance pairs + your holdings)
+  - Generate 0-5 AI swing signals gated at 80%+ confidence (OpenAI -> DeepSeek -> empty result if nothing qualifies)
   - Persist signals to Postgres
   - Email the daily brief via Resend (if configured)
+- Trading 212 and NGX pricing are refreshed on-demand by the dashboard (client polling + caching), not by cron -- Trading 212 via the **Sync Trading 212 now** button in Settings, NGX automatically on every page load.
 - Manual trigger: `POST /api/cron/daily` (authorized users only).
 
 ## Deploy Recipes
@@ -93,10 +110,19 @@ Generate Prisma client if needed: `npx prisma generate`. Seed sample data: `npm 
 
 ## Project Structure
 - `app/` -- App Router pages + API routes
-- `components/` -- UI kit, themed controls, dashboard widgets
-- `lib/` -- Prisma client, auth config, Binance client, AI + email utilities
-- `scripts/cron.ts` -- Daily swing signal + Resend job (used by cron service)
-- `prisma/` -- Schema + seed
+- `components/` -- UI kit, themed controls, dashboard widgets (`dashboard-tabs.tsx`, `add-position-form.tsx`, `market-radar.tsx`, `stats-live.tsx`, `holdings-table.tsx`, `trades-table.tsx`)
+- `lib/` -- Prisma client, auth config, and per-domain integrations:
+  - `binance.ts` -- crypto balances, trades, market prices
+  - `trading212.ts` -- read-only Trading 212 client (positions, instrument currency, order history)
+  - `stocks.ts` -- US stock quotes (Yahoo) and NGX quotes (Mansa API + free scraper fallback, cached)
+  - `mansa.ts` -- Mansa API client for bulk NGX prices
+  - `fx.ts` -- live currency conversion (GBP/NGN -> USD) via Yahoo FX tickers
+  - `pricing.ts` -- fans a mixed crypto/stock holdings list out to the right source and merges results back into one USD-denominated price list
+  - `ai.ts` -- AI swing signal generation + the 80%+ confidence gate
+  - `email.tsx` -- daily brief templates (React Email)
+- `scripts/cron.ts` -- daily swing signal + Resend job (used by cron service)
+- `scripts/docker-build.mjs` -- stamps `GIT_COMMIT`/`BUILD_DATE` into the image before building
+- `prisma/` -- schema + seed
 - `tests/` -- Vitest unit tests (utils, AI parsing, Binance fallbacks, sync/cron with mocks)
 
 ## Running Prisma Migrations in Docker
@@ -112,10 +138,12 @@ docker compose exec apexpulse node prisma/seed.js
 - Coverage highlights: formatting utils, AI signal parsing, Binance ticker fallbacks, trade parsing, sync and cron endpoints via mocks, auth credential schema.
 
 ## Notes
-- Multi-stage Dockerfile keeps the final image lean and production-ready.
+- Multi-stage Dockerfile keeps the final image lean and production-ready; `COPY --chown` (not a separate `RUN chown -R` pass) keeps rebuilds fast.
 - Tremor 3.0 is pre-wired for charts; next-themes for dark/light.
 - Ports 3000/3300/5433/15432 are intentionally unused per request.
 - Auto-sync: cron refreshes Binance holdings every `CRON_INTERVAL_SECONDS` without manual button presses; pricing has bulk + per-symbol fallbacks and stablecoin anchors at $1.
+- Every price source is best-effort: a stock holding with no live quote right now (source down, rate-limited, ticker not covered) falls back to its own cost basis rather than disappearing from the dashboard.
+- Holdings are matched by `{userId, asset, source}`, not just `{userId, asset}`, so Binance/Trading 212/manual entries never silently collide even if two brokers happen to use the same ticker.
 
 ## Environment Keys (reference)
 - `PORT` (default 3100)
@@ -132,33 +160,38 @@ docker compose exec apexpulse node prisma/seed.js
 ## Architecture (high level)
 ApexPulse is a **modular monolith**: the UI and API live in one Next.js app, and background work
 is done by a separate cron container. The database is a single Postgres instance accessed through
-Prisma. External services (Binance, LLMs, Resend) are called by the API layer and the cron worker.
+Prisma. A dedicated **pricing engine** (`lib/pricing.ts`) fans each holding out to the right price
+source by asset class/market and merges results back into one USD-denominated list, so no dashboard
+component has to know whether an asset is crypto, a Trading 212 stock, or an NGX stock.
 
-![Architecture Diagram](public/architecture.png)
+![Architecture Diagram](public/architecture.svg)
 
 ```mermaid
 flowchart TD
-    Browser[Next.js App<br/>TanStack Query + Tremor] --> API[/Next.js API Routes/]
+    Browser[Next.js App<br/>Tabs: Crypto / Trading212 / NGX<br/>TanStack Query + Tremor] --> API[/Next.js API Routes/]
     API --> Auth[NextAuth v5<br/>Prisma Adapter]
-    API --> Holdings[Holdings/Signals/Settings APIs]
-    API --> Binance[Binance REST + WebSocket]
-    API --> AI[OpenAI -> DeepSeek]
+    API --> Pricing[Pricing Engine<br/>lib/pricing.ts]
+    API --> AI[AI Signals<br/>OpenAI -> DeepSeek<br/>80%+ gate]
     API --> Email[Resend + React Email]
-    Holdings --> DB[(PostgreSQL via Prisma)]
-    Auth --> DB
-    Cron[Cron container<br/>tsx scripts/cron.ts] --> API
-    Cron --> Binance
+    Pricing --> Binance[Binance<br/>crypto]
+    Pricing --> Yahoo[Yahoo Finance<br/>US stocks + FX]
+    Pricing --> T212[Trading212 synced snapshot]
+    Pricing --> NGX[Mansa API -> free scraper<br/>Nigeria Stock NGX]
+    Auth --> DB[(PostgreSQL via Prisma)]
+    Pricing -.avgBuyPrice fallback.-> DB
+    Cron[Cron container<br/>tsx scripts/cron.ts] --> Binance
     Cron --> AI
     Cron --> Email
     Cron --> DB
 ```
 
 ### How the pieces connect
-- **UI (Next.js App Router):** renders dashboard, charts, settings, and trade history.
-- **API routes (Next.js):** expose `/api/*` endpoints for holdings, trades, prices, and signals.
+- **UI (Next.js App Router):** dashboard tabs (Crypto default, then Trading 212, then Nigeria Stock, plus an Other Stocks tab that only appears if used), settings, and trade history.
+- **API routes (Next.js):** expose `/api/*` endpoints for holdings, trades, prices, signals, and per-source syncs.
+- **Pricing engine:** routes each holding to Binance, Yahoo Finance, Trading 212's own synced snapshot, or Mansa/the free NGX scraper -- converts everything to USD internally (`lib/fx.ts`), and falls back to a holding's own cost basis if its live source is temporarily unavailable, so nothing vanishes from the dashboard.
 - **Prisma ORM:** all read/write access to Postgres.
-- **Cron worker:** runs scheduled sync + signal generation jobs.
-- **External services:** Binance for balances/trades/prices, DeepSeek/OpenAI for signals, Resend for email.
+- **Cron worker:** runs scheduled Binance sync + AI signal generation + email jobs (Trading 212/NGX refresh on-demand from the dashboard instead).
+- **External services:** Binance and Trading 212 for holdings; Mansa/Yahoo/the free NGX scraper for prices; OpenAI/DeepSeek for signals; Resend for email.
 
 This keeps deployment simple while still separating web requests from background jobs.
 
@@ -181,12 +214,16 @@ erDiagram
     string userId
     string binanceApiKey
     string binanceApiSecret
+    string trading212ApiKey
+    string trading212ApiSecret
+    string mansaApiKey
     string openaiApiKey
     string deepseekApiKey
     string resendApiKey
     string resendFrom
     string dailyEmailTo
     string fullName
+    float minHoldingValueUsd
     datetime createdAt
   }
   Holding {
@@ -195,7 +232,10 @@ erDiagram
     string asset
     float amount
     float avgBuyPrice
-    string chain
+    string assetClass "CRYPTO or STOCK"
+    string market "US, NGX, LSE, etc."
+    string source "binance, trading212, bamboo, cscs, manual"
+    float lastPriceUsd "Trading212 synced snapshot only"
     datetime updatedAt
   }
   Transaction {
@@ -205,6 +245,7 @@ erDiagram
     float quantity
     float price
     string type
+    string source "binance, trading212"
     datetime executedAt
   }
   Signal {
@@ -228,35 +269,60 @@ erDiagram
 - **Caching:** Add Redis to reduce API calls and speed up dashboards.
 - **Rate limits:** Add per-user rate limiting and task queues for sync jobs.
 
-## Future Exchange Adapters (planned)
-We plan to add a plug-in adapter framework so you can select your exchange and plug in API keys.
-Next steps:
-1. Create a shared `ExchangeAdapter` interface.
-2. Refactor Binance to the adapter.
-3. Add another exchange (Coinbase, Kraken, KuCoin, OKX, or Bybit).
+## More brokers/exchanges (status)
+Rather than a formal adapter interface, each new source got its own small client under `lib/`
+(`binance.ts`, `trading212.ts`, `stocks.ts`, `mansa.ts`) that all resolve to the same
+`{symbol, price, change24h, volume, high, low}` shape, fanned out by `lib/pricing.ts`. Adding
+another crypto exchange (Coinbase, Kraken, KuCoin, OKX, Bybit) would follow the same pattern.
+A shared `ExchangeAdapter` interface is still a reasonable refactor once there are 2+ crypto
+exchanges, just not built yet.
 
 ## Pricing behavior
-- Bulk prices from `/api/v3/ticker/24hr` for `COINUSDT`.
-- Per-symbol fallback via `/api/v3/ticker/price?symbol=COINUSDT` if missing.
-- Stablecoins (USDT/USDC/BUSD/FDUSD/TUSD) anchored to 1 when held.
-- Threshold set by `BINANCE_MIN_VALUE_USD` (default 0 to keep all balances).
+Every source converts to USD internally (`lib/fx.ts` for live GBP/NGN rates) so the whole app --
+portfolio value, PnL, the Invest column -- can assume USD, with NGX display converted back to Naira
+purely at render time.
+
+- **Crypto (Binance):** bulk prices from `/api/v3/ticker/24hr`, per-symbol fallback via
+  `/api/v3/ticker/price` if missing. Stablecoins (USDT/USDC/BUSD/FDUSD/TUSD) anchored to 1 when held
+  and excluded from PnL (they're cash-equivalent, not a directional bet).
+- **US stocks:** Yahoo Finance's free chart endpoint (no key).
+- **Trading 212:** priced from the position snapshot captured at your last **Sync Trading 212 now**
+  click (not live-polled) -- Trading 212 reports each instrument in its own native currency (e.g. GBP
+  for an LSE listing), converted to USD once at sync time via the instrument's real currency from
+  Trading 212's own metadata endpoint.
+- **Nigeria Stock (NGX):** Mansa API primary (if you've added a free key in Settings), the free
+  `afx.kwayisi.org` scraper as fallback -- cached 5-20 minutes rather than polled every 15s, since
+  both are rate-limited/best-effort free resources.
+- **Any stock with no live quote right now** (source down, rate-limited, ticker not covered): falls
+  back to that holding's own cost basis rather than pricing at $0, so it never disappears from a
+  chart/card/table.
+- Threshold: `minHoldingValueUsd`, configurable per-user in Settings (default $5), applied after
+  conversion so it always compares against USD regardless of which tab you're viewing.
 
 ## Auto-sync cadence
-- Controlled by `CRON_INTERVAL_SECONDS` (default 300s ~5m).
-- Cron syncs Binance for each user before generating signals and emails.
+- **Crypto:** `CRON_INTERVAL_SECONDS` (default 300s ~5m) via the cron container.
+- **Trading 212:** manual, via the **Sync Trading 212 now** button in Settings (their API doesn't
+  support webhooks/push).
+- **Nigeria Stock:** automatic on every dashboard load/15s poll, from whichever price source is
+  configured -- no sync button, since these are one-time-entered positions, not synced from a broker
+  account.
 
 ## Internal API (not public)
 These endpoints are used by the frontend and cron worker. All require auth unless noted.
 
 - `GET /api/holdings` -> list of holdings.
-- `POST /api/holdings` -> create a holding (manual add).
+- `POST /api/holdings` -> create a holding (manual add; converts NGN buy price to USD server-side for NGX).
 - `PUT /api/holdings/[id]` -> update holding.
 - `DELETE /api/holdings/[id]` -> delete holding.
-- `GET /api/prices` -> current prices (Binance + fallbacks).
+- `GET /api/prices` -> current prices for all your holdings, across every source, merged.
+- `GET /api/stock-quote?symbol=&market=` -> live single-symbol preview for the "Add position" form (before it's saved).
+- `GET /api/fx?to=CURRENCY` -> how many units of `CURRENCY` equal 1 USD.
 - `GET /api/transactions` -> buy-only trades (history table).
 - `POST /api/transactions` -> create manual trade.
 - `DELETE /api/transactions/[id]` -> delete trade.
 - `GET /api/signals` -> latest AI signals.
-- `GET /api/signals?refresh=true` -> generate new signals (uses Settings keys).
+- `GET /api/signals?refresh=true` -> generate new signals, gated at 80%+ confidence (uses Settings keys).
+- `GET/PUT /api/settings` -> manage per-user API keys and preferences.
 - `POST /api/cron/daily` -> cron signal + email (authorized).
-- `POST /api/sync/binance` -> sync holdings/trades (authorized).
+- `POST /api/sync/binance` -> sync crypto holdings/trades (authorized).
+- `POST /api/sync/trading212` -> sync Trading 212 positions + order history (authorized).

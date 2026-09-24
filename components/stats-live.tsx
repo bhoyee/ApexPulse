@@ -129,9 +129,13 @@ export function StatsLive({
   });
   const totalInvested = Array.from(investedBySymbol.values()).reduce((s, v) => s + v, 0);
 
+  // Stablecoins are cash-equivalent, not a directional bet -- they don't
+  // belong in a profit/loss figure, so they're excluded here even though
+  // they still count toward portfolio value and invested totals above.
   const pnlBySymbol = new Map<string, number>();
   trades.forEach((t) => {
     const sym = t.symbol.toUpperCase();
+    if (STABLES.includes(sym)) return;
     const qty = Number(t.quantity);
     const cost = qty * Number(t.price);
     const current = qty * (priceMap[sym]?.price ?? 0);
@@ -139,6 +143,7 @@ export function StatsLive({
   });
   holdings.forEach((h) => {
     const sym = h.asset.toUpperCase();
+    if (STABLES.includes(sym)) return;
     if (pnlBySymbol.has(sym)) return;
     const qty = Number(h.amount);
     const cost = qty * Number(h.avgBuyPrice);

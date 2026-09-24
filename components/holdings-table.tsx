@@ -134,7 +134,7 @@ export function HoldingsTable({
     const current = (market?.price ?? 0) * Number(h.amount);
     const invest =
       investMap[h.asset.toUpperCase()] ?? Number(h.amount) * Number(h.avgBuyPrice ?? 0);
-    return { ...h, current, invest, market };
+    return { ...h, current, invest, pnl: current - invest, market };
   });
 
   const filtered = rowsRaw
@@ -154,6 +154,7 @@ export function HoldingsTable({
   const rows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalValue = rows.reduce((t, r) => t + r.current, 0);
   const totalInvest = rows.reduce((t, r) => t + (r.invest ?? 0), 0);
+  const totalPnl = totalValue - totalInvest;
 
   return (
     <div className="space-y-4">
@@ -198,10 +199,10 @@ export function HoldingsTable({
                 </span>
               </span>
               <Button
-                variant="ghost"
+                variant="destructive"
                 size="sm"
-                className="text-muted-foreground hover:text-destructive"
                 onClick={() => removeMutation.mutate(row.id)}
+                disabled={removeMutation.isPending}
               >
                 Remove
               </Button>
@@ -218,6 +219,12 @@ export function HoldingsTable({
               <div>
                 <p>Value</p>
                 <p className="text-foreground">{fmt(row.current)}</p>
+              </div>
+              <div>
+                <p>PnL</p>
+                <p className={row.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                  {fmt(row.pnl)}
+                </p>
               </div>
             </div>
             {row.createdAt && (
@@ -268,6 +275,7 @@ export function HoldingsTable({
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Invest</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Amount</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Value</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">PnL</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -285,12 +293,17 @@ export function HoldingsTable({
                 <td className="px-4 py-3 text-right">{fmt(row.invest ?? 0)}</td>
                 <td className="px-4 py-3 text-right">{Number(row.amount).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">{fmt(row.current)}</td>
+                <td
+                  className={`px-4 py-3 text-right ${row.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                >
+                  {fmt(row.pnl)}
+                </td>
                 <td className="px-4 py-3 text-right">
                   <Button
-                    variant="ghost"
+                    variant="destructive"
                     size="sm"
-                    className="text-muted-foreground hover:text-destructive"
                     onClick={() => removeMutation.mutate(row.id)}
+                    disabled={removeMutation.isPending}
                   >
                     Remove
                   </Button>
@@ -299,7 +312,7 @@ export function HoldingsTable({
             ))}
             {!rows.length && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
                   No holdings here yet.
                 </td>
               </tr>
@@ -309,7 +322,13 @@ export function HoldingsTable({
             <tr>
               <td className="px-4 py-3 font-semibold">Total</td>
               <td className="px-4 py-3 text-right font-semibold">{fmt(totalInvest)}</td>
+              <td />
               <td className="px-4 py-3 text-right font-semibold">{fmt(totalValue)}</td>
+              <td
+                className={`px-4 py-3 text-right font-semibold ${totalPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+              >
+                {fmt(totalPnl)}
+              </td>
               <td />
             </tr>
           </tfoot>

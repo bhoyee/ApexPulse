@@ -24,6 +24,13 @@ interface Price {
   price: number;
 }
 
+interface Trade {
+  symbol: string;
+  quantity: number;
+  price: number;
+  type?: string;
+}
+
 interface AssetSnapshot {
   symbol: string;
   price: number;
@@ -77,6 +84,12 @@ async function fetchPrices(): Promise<Price[]> {
   return data.markets ?? [];
 }
 
+async function fetchTrades(): Promise<Trade[]> {
+  const res = await fetch("/api/transactions");
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export function MarketRadar({
   markets,
   minHoldingValueUsd = 5,
@@ -101,6 +114,13 @@ export function MarketRadar({
     refetchInterval: 15000
   });
 
+  const { data: trades = [] } = useQuery({
+    queryKey: ["trades"],
+    queryFn: fetchTrades,
+    initialData: [],
+    refetchInterval: 15000
+  });
+
   const allowed = symbols ? new Set(symbols.map((s) => s.toUpperCase())) : null;
   const holdings = allowed ? allHoldings.filter((h) => allowed.has(h.asset.toUpperCase())) : allHoldings;
 
@@ -120,11 +140,27 @@ export function MarketRadar({
   // Dominance: cost basis per position (how much capital actually went INTO
   // it). Deliberately different from Price Glide -- a coin/stock that mooned
   // can dominate current value while barely showing up here, and vice versa.
+  //
+  // Prefer real trade history per symbol: Binance's balance API doesn't
+  // return historical cost, so freshly-synced crypto holdings have
+  // avgBuyPrice=0 until a BUY trade exists. Only fall back to
+  // amount*avgBuyPrice for symbols with no trade rows (manual/NGX/Trading212
+  // entries, which always have a real avgBuyPrice).
+  const investedBySymbol = new Map<string, number>();
+  trades
+    .filter((t) => (t.type ?? "BUY") === "BUY")
+    .forEach((t) => {
+      const sym = t.symbol.toUpperCase();
+      if (allowed && !allowed.has(sym)) return;
+      investedBySymbol.set(sym, (investedBySymbol.get(sym) ?? 0) + Number(t.quantity) * Number(t.price));
+    });
+
   const donutData = holdings
-    .map((h) => ({
-      name: h.asset.toUpperCase(),
-      value: Number(h.amount) * Number(h.avgBuyPrice ?? 0)
-    }))
+    .map((h) => {
+      const sym = h.asset.toUpperCase();
+      const value = investedBySymbol.get(sym) ?? Number(h.amount) * Number(h.avgBuyPrice ?? 0);
+      return { name: sym, value };
+    })
     .filter((d) => d.value > minHoldingValueUsd);
   const donutColors = donutData.map((_, i) => tremorColors[i % tremorColors.length]);
 

@@ -50,7 +50,10 @@ const NGX_ROW =
 
 async function fetchNgxPage(url: string): Promise<{ rows: Map<string, StockQuote>; next: string | null }> {
   const rows = new Map<string, StockQuote>();
-  const res = await fetch(url, { headers: { "User-Agent": YAHOO_UA } });
+  const res = await fetch(url, {
+    headers: { "User-Agent": YAHOO_UA },
+    signal: AbortSignal.timeout(8000)
+  });
   if (!res.ok) return { rows, next: null };
   const html = await res.text();
 
@@ -74,11 +77,55 @@ async function fetchNgxPage(url: string): Promise<{ rows: Map<string, StockQuote
   return { rows, next: nextMatch ? nextMatch[1] : null };
 }
 
+// The dashboard polls its price endpoint every 15s -- re-scraping a free,
+// community-run site that often would be a bad neighbor and risks getting
+// this server's IP rate-limited or blocked outright. Fetch the whole table
+// (both pages) at most once per NGX_CACHE_TTL_MS and serve every request
+// from that cache in between; stock prices don't need 15s freshness the
+// way crypto does.
+const NGX_CACHE_TTL_MS = 5 * 60 * 1000;
+let ngxTableCache: { fetchedAt: number; rows: Map<string, StockQuote> } | null = null;
+let ngxFetchInFlight: Promise<Map<string, StockQuote>> | null = null;
+
+async function fetchFullNgxTable(): Promise<Map<string, StockQuote>> {
+  const all = new Map<string, StockQuote>();
+  let url: string | null = "https://afx.kwayisi.org/ngx/";
+  let pagesLeft = 5; // safety cap against an infinite/broken pagination chain
+  while (url && pagesLeft > 0) {
+    const { rows, next } = await fetchNgxPage(url);
+    rows.forEach((quote, ticker) => all.set(ticker, quote));
+    url = next;
+    pagesLeft -= 1;
+  }
+  return all;
+}
+
+async function getNgxTable(): Promise<Map<string, StockQuote>> {
+  const now = Date.now();
+  if (ngxTableCache && now - ngxTableCache.fetchedAt < NGX_CACHE_TTL_MS) {
+    return ngxTableCache.rows;
+  }
+  // Coalesce concurrent callers into a single in-flight fetch rather than
+  // each kicking off their own scrape while the cache is cold/expiring.
+  if (!ngxFetchInFlight) {
+    ngxFetchInFlight = fetchFullNgxTable()
+      .then((rows) => {
+        if (rows.size) ngxTableCache = { fetchedAt: Date.now(), rows };
+        return rows;
+      })
+      .catch(() => ngxTableCache?.rows ?? new Map())
+      .finally(() => {
+        ngxFetchInFlight = null;
+      });
+  }
+  return ngxFetchInFlight;
+}
+
 // Scrapes a free, community-run NGX price table (no official free API exists --
 // NGX's own data license runs $1k-2.5k/year). Best-effort by design: if the
-// page structure changes or the site is down, this returns an empty/partial
-// result rather than throwing, and callers should fall back to the holding's
-// last-known/avg-buy price rather than fail outright.
+// page structure changes or the site is down/unreachable, this returns an
+// empty/partial result rather than throwing -- callers fall back to the
+// holding's last-known/avg-buy price rather than showing nothing.
 //
 // The scraped prices are in Naira. Every other price source in this app
 // (Binance, Yahoo, Trading212's converted snapshot) returns USD, and every
@@ -87,27 +134,20 @@ async function fetchNgxPage(url: string): Promise<{ rows: Map<string, StockQuote
 // math. The NGX dashboard tab then converts back to NGN purely for display.
 export async function getNgxStockQuotes(symbols: string[]): Promise<StockQuote[]> {
   const wanted = new Set(symbols.map((s) => s.toUpperCase()));
-  const found = new Map<string, StockQuote>();
-
+  let table: Map<string, StockQuote>;
   try {
-    let url: string | null = "https://afx.kwayisi.org/ngx/";
-    let pagesLeft = 5; // safety cap against an infinite/broken pagination chain
-    while (url && pagesLeft > 0 && found.size < wanted.size) {
-      const { rows, next } = await fetchNgxPage(url);
-      rows.forEach((quote, ticker) => {
-        if (wanted.has(ticker)) found.set(ticker, quote);
-      });
-      url = next;
-      pagesLeft -= 1;
-    }
+    table = await getNgxTable();
   } catch {
-    // best-effort: return whatever was found before the failure
+    return [];
   }
 
-  if (!found.size) return [];
+  const found = Array.from(table.entries())
+    .filter(([ticker]) => wanted.has(ticker))
+    .map(([, quote]) => quote);
+  if (!found.length) return [];
 
   const usdPerNgn = await getUsdRate("NGN"); // USD value of 1 NGN
-  return Array.from(found.values()).map((q) => ({
+  return found.map((q) => ({
     ...q,
     price: q.price * usdPerNgn,
     high: q.high * usdPerNgn,

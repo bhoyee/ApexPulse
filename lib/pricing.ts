@@ -7,6 +7,9 @@ export interface HoldingRef {
   market?: string | null;
   source?: string | null;
   lastPriceUsd?: number | null;
+  // Prisma Decimal, number, or string -- whatever shape the caller has on
+  // hand; only ever passed through Number() below.
+  avgBuyPrice?: unknown;
 }
 
 // Every dashboard component keys prices by symbol via a flat {symbol, price,
@@ -46,5 +49,21 @@ export async function getPricesForHoldings(holdings: HoldingRef[], extraCryptoSy
     )
   ]);
 
-  return [...cryptoMarkets, ...trading212Quotes, ...stockMarkets.flat()];
+  const liveStockQuotes = stockMarkets.flat();
+
+  // If a free price source (e.g. NGX's scraped table) is temporarily
+  // unreachable, a manually-tracked stock holding would otherwise show as
+  // $0 and get filtered out of every chart/card/table on the dashboard.
+  // Fall back to its own cost basis so it stays visible -- flat PnL for
+  // that position until live data comes back, not a vanished position.
+  const liveSymbols = new Set(liveStockQuotes.map((q) => q.symbol));
+  const fallbackQuotes = holdings
+    .filter((h) => h.assetClass === "STOCK" && h.source !== "trading212")
+    .filter((h) => !liveSymbols.has(h.asset.toUpperCase()))
+    .map((h) => {
+      const price = Number(h.avgBuyPrice ?? 0);
+      return { symbol: h.asset.toUpperCase(), price, change24h: 0, volume: 0, high: price, low: price };
+    });
+
+  return [...cryptoMarkets, ...trading212Quotes, ...liveStockQuotes, ...fallbackQuotes];
 }

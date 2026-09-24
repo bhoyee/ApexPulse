@@ -101,7 +101,10 @@ export function HoldingsTable({
       const res = await fetch(`/api/holdings/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: ["holdings"] }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["holdings"] });
+      client.invalidateQueries({ queryKey: ["prices"] });
+    },
     onError: (error: any) => toast.error(error.message)
   });
 

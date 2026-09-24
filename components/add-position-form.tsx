@@ -110,8 +110,14 @@ export function AddPositionForm({
       return holding;
     },
     onSuccess: () => {
+      // /api/prices derives its symbol list from current holdings, so a
+      // newly-added symbol has no price yet until this refetches -- without
+      // it, the new row computes to $0 and gets filtered out of every
+      // table/chart until the next 15s poll (or a full page reload, which
+      // is why that "fixed" it).
       client.invalidateQueries({ queryKey: ["holdings"] });
       client.invalidateQueries({ queryKey: ["trades"] });
+      client.invalidateQueries({ queryKey: ["prices"] });
       toast.success("Holding saved");
       setAsset(defaultSymbol);
       setQuantity("1");

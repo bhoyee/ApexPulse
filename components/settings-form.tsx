@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useState } from "react";
 import { Button } from "./ui/button";
@@ -27,6 +28,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
+  const client = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -55,6 +57,12 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
         toast.error(data.error ?? "Trading 212 sync failed");
         return;
       }
+      // Sync happens on this page, but holdings/prices/trades are shown on
+      // the dashboard -- invalidate here so it's already fresh whenever you
+      // navigate there, instead of waiting for its next 15s poll.
+      client.invalidateQueries({ queryKey: ["holdings"] });
+      client.invalidateQueries({ queryKey: ["prices"] });
+      client.invalidateQueries({ queryKey: ["trades"] });
       toast.success(`Synced ${data.synced ?? 0} Trading 212 position(s)`);
     } finally {
       setSyncing(false);

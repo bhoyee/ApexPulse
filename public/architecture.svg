@@ -96,13 +96,15 @@
     <text x="1155" y="656" font-size="12" fill="#64748b">React Email, daily brief</text>
   </g>
 
-  <path d="M970,375 H1130 V230" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M970,395 H1050 V312" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M970,405 H1010 V394" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M780,440 C 950,440 1000,440 1130,394" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M780,455 C 950,470 1000,480 1130,476" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M970,415 H1000 V558" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M970,425 H1020 V640" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
+  <!-- Postgres fans out to each price/service source with one clean straight
+       line per box. No shared verticals or crossing curves, on purpose,
+       so every connector is easy to trace end to end. -->
+  <path d="M970,350 L1130,230" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M970,362 L1130,312" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M970,374 L1130,394" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M970,398 L1130,476" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M970,410 L1130,558" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M970,422 L1130,640" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
 
   <!-- Cron worker gear/clock icon -->
   <g transform="translate(420,600)">
@@ -115,8 +117,7 @@
   </g>
   <path d="M465,600 V480 H570" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
   <path d="M510,645 H830 V425" fill="none" stroke="#5b7ba8" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M510,660 C 800,700 1000,650 1130,230" fill="none" stroke="#5b7ba8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow)" />
-  <text x="700" y="700" font-size="12" fill="#64748b">Syncs Binance, generates AI signals, sends the daily email</text>
+  <text x="600" y="700" font-size="12" fill="#64748b">Cron syncs Binance via the app's Pricing Engine, generates AI signals, sends the daily email</text>
 
   <!-- Optional row -->
   <g font-size="15">

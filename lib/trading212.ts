@@ -22,7 +22,8 @@ export async function getTrading212Positions(
 ): Promise<Trading212Position[]> {
   const res = await fetch(`${T212_BASE}/equity/portfolio`, {
     method: "GET",
-    headers: { Authorization: authHeader(apiKey, apiSecret) }
+    headers: { Authorization: authHeader(apiKey, apiSecret) },
+    signal: AbortSignal.timeout(10000)
   });
 
   if (!res.ok) {
@@ -48,7 +49,8 @@ export async function getTrading212Instruments(
 ): Promise<Trading212Instrument[]> {
   const res = await fetch(`${T212_BASE}/equity/metadata/instruments`, {
     method: "GET",
-    headers: { Authorization: authHeader(apiKey, apiSecret) }
+    headers: { Authorization: authHeader(apiKey, apiSecret) },
+    signal: AbortSignal.timeout(10000)
   });
 
   if (!res.ok) {
@@ -86,10 +88,16 @@ export async function getTrading212FilledOrders(
   let pagesLeft = maxPages;
 
   while (path && pagesLeft > 0) {
-    const res = await fetch(`${T212_BASE}${path.replace(/^\/api\/v0/, "")}`, {
-      method: "GET",
-      headers: { Authorization: authHeader(apiKey, apiSecret) }
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${T212_BASE}${path.replace(/^\/api\/v0/, "")}`, {
+        method: "GET",
+        headers: { Authorization: authHeader(apiKey, apiSecret) },
+        signal: AbortSignal.timeout(10000)
+      });
+    } catch {
+      break; // network hiccup mid-pagination: return whatever pages were already fetched
+    }
     if (!res.ok) break;
 
     const page = (await res.json()) as { items: HistoryOrderItem[]; nextPagePath: string | null };

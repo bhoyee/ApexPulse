@@ -24,7 +24,8 @@ export async function getBinanceBalances(
   const url = `${BINANCE_API}/api/v3/account?${query}&signature=${signature}`;
 
   const res = await fetch(url, {
-    headers: { "X-MBX-APIKEY": apiKey }
+    headers: { "X-MBX-APIKEY": apiKey },
+    signal: AbortSignal.timeout(10000)
   });
 
   if (!res.ok) throw new Error("Failed to fetch Binance balances");
@@ -69,26 +70,32 @@ export async function getMarketTickers(symbols: string[]) {
     chunks.map(async (chunk) => {
       const query = chunk.map((s) => `"${s}USDT"`).join(",");
       const url = `${BINANCE_API}/api/v3/ticker/24hr?symbols=[${query}]`;
-      const res = await fetch(url);
-      if (!res.ok) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) {
+          return [];
+        }
+        const json = (await res.json()) as Array<{
+          symbol: string;
+          lastPrice: string;
+          priceChangePercent: string;
+          highPrice: string;
+          lowPrice: string;
+          volume: string;
+        }>;
+        return json.map((item) => ({
+          symbol: item.symbol.replace("USDT", "").toUpperCase(),
+          price: Number(item.lastPrice),
+          change24h: Number(item.priceChangePercent),
+          volume: Number(item.volume),
+          high: Number(item.highPrice),
+          low: Number(item.lowPrice)
+        }));
+      } catch {
+        // Binance unreachable/slow: this chunk contributes nothing rather
+        // than throwing and taking down the whole dashboard render with it.
         return [];
       }
-      const json = (await res.json()) as Array<{
-        symbol: string;
-        lastPrice: string;
-        priceChangePercent: string;
-        highPrice: string;
-        lowPrice: string;
-        volume: string;
-      }>;
-      return json.map((item) => ({
-        symbol: item.symbol.replace("USDT", "").toUpperCase(),
-        price: Number(item.lastPrice),
-        change24h: Number(item.priceChangePercent),
-        volume: Number(item.volume),
-        high: Number(item.highPrice),
-        low: Number(item.lowPrice)
-      }));
     })
   );
 
@@ -108,7 +115,7 @@ export async function getMarketTickers(symbols: string[]) {
       for (const quote of quotePrefs) {
         try {
           const url = `${BINANCE_API}/api/v3/ticker/price?symbol=${sym}${quote}`;
-          const res = await fetch(url);
+          const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
           if (!res.ok) continue;
           const data = (await res.json()) as { price?: string };
           const price = Number(data.price);
@@ -156,7 +163,9 @@ export async function getMarketTickers(symbols: string[]) {
   await Promise.all(
     finalMissing.map(async (sym) => {
       try {
-        const res = await fetch(`${BINANCE_API}/api/v3/avgPrice?symbol=${sym}USDT`);
+        const res = await fetch(`${BINANCE_API}/api/v3/avgPrice?symbol=${sym}USDT`, {
+          signal: AbortSignal.timeout(6000)
+        });
         if (!res.ok) return;
         const data = (await res.json()) as { price?: string };
         const price = Number(data.price);
@@ -201,7 +210,12 @@ export interface MarketCandidate {
 // DOWN products), and every entry is backed by live price/volume data
 // rather than the model guessing at obscure tickers from memory.
 export async function getTopUsdtMarkets(limit = 30): Promise<MarketCandidate[]> {
-  const res = await fetch(`${BINANCE_API}/api/v3/ticker/24hr`);
+  let res: Response;
+  try {
+    res = await fetch(`${BINANCE_API}/api/v3/ticker/24hr`, { signal: AbortSignal.timeout(10000) });
+  } catch {
+    return [];
+  }
   if (!res.ok) return [];
 
   const all = (await res.json()) as Array<{
@@ -277,7 +291,12 @@ async function getCoingeckoPrices(symbols: string[]) {
     .join(",");
   if (!ids) return [];
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`;
-  const res = await fetch(url);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  } catch {
+    return [];
+  }
   if (!res.ok) return [];
   const data = (await res.json()) as Record<string, { usd: number }>;
   return Object.entries(data).map(([id, val]) => {
@@ -309,7 +328,7 @@ export async function getBinanceTrades(
   // Align with server time to avoid timestamp drift issues
   let serverTime = Date.now();
   try {
-    const t = await fetch(`${BINANCE_API}/api/v3/time`);
+    const t = await fetch(`${BINANCE_API}/api/v3/time`, { signal: AbortSignal.timeout(5000) });
     if (t.ok) {
       const json = (await t.json()) as { serverTime?: number };
       if (json.serverTime) serverTime = json.serverTime;
@@ -345,7 +364,8 @@ export async function getBinanceTrades(
 
     try {
       const res = await fetch(url, {
-        headers: { "X-MBX-APIKEY": key }
+        headers: { "X-MBX-APIKEY": key },
+        signal: AbortSignal.timeout(10000)
       });
       if (!res.ok) {
         console.error("Trade fetch failed", pair, res.status, res.statusText);

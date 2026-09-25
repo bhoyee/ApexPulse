@@ -22,7 +22,7 @@ export async function getUsStockQuotes(symbols: string[]): Promise<StockQuote[]>
       try {
         const res = await fetch(
           `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`,
-          { headers: { "User-Agent": YAHOO_UA } }
+          { headers: { "User-Agent": YAHOO_UA }, signal: AbortSignal.timeout(8000) }
         );
         if (!res.ok) return null;
         const data = await res.json();

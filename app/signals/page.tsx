@@ -25,7 +25,7 @@ export default async function SignalsPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="mx-auto max-w-5xl space-y-6 p-4 pb-12">
+      <main className="w-full space-y-6 px-4 py-6 pb-16 sm:px-6 lg:px-10">
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-primary">AI signals</p>
           <h1 className="text-3xl font-bold">Swing calls</h1>

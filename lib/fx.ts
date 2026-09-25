@@ -13,7 +13,7 @@ export async function getUsdRate(currency: string): Promise<number> {
   try {
     const res = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${code}USD=X`,
-      { headers: { "User-Agent": YAHOO_UA } }
+      { headers: { "User-Agent": YAHOO_UA }, signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return 1;
     const data = await res.json();

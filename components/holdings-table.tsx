@@ -216,10 +216,6 @@ export function HoldingsTable({
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               <div>
-                <p>Buy price</p>
-                <p className="text-foreground">{fmt(Number(row.avgBuyPrice ?? 0))}</p>
-              </div>
-              <div>
                 <p>Qty</p>
                 <p className="text-foreground">{Number(row.amount).toFixed(2)}</p>
               </div>
@@ -297,7 +293,6 @@ export function HoldingsTable({
           <thead className="bg-white/5">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Asset</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Buy price</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Qty</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Invest</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Current price</th>
@@ -318,7 +313,6 @@ export function HoldingsTable({
                     </span>
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">{fmt(Number(row.avgBuyPrice ?? 0))}</td>
                 <td className="px-4 py-3 text-right">{Number(row.amount).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">{fmt(row.invest ?? 0)}</td>
                 <td className="px-4 py-3 text-right">
@@ -357,7 +351,7 @@ export function HoldingsTable({
             ))}
             {!rows.length && (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                <td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground">
                   No holdings here yet.
                 </td>
               </tr>
@@ -366,7 +360,6 @@ export function HoldingsTable({
           <tfoot className="bg-white/5">
             <tr>
               <td className="px-4 py-3 font-semibold">Total</td>
-              <td />
               <td />
               <td className="px-4 py-3 text-right font-semibold">{fmt(totalInvest)}</td>
               <td />

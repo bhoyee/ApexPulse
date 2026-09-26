@@ -93,20 +93,20 @@ export function AddPositionForm({
       });
       if (!res.ok) throw new Error("Failed to add holding");
       const holding = await res.json();
-      // also create a BUY trade for history (crypto only -- stock trade
-      // history isn't tracked yet)
-      if (assetClass === "CRYPTO") {
-        await fetch("/api/transactions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            symbol: asset.toUpperCase(),
-            quantity: qty,
-            price: buy,
-            executedAt: timestamp || undefined
-          })
-        });
-      }
+      // Also record this as a BUY trade so it shows up in trade history --
+      // `price`/`market` here are the raw values as entered (e.g. NGN for
+      // NGX), converted to USD server-side the same way the holding was.
+      await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: asset.toUpperCase(),
+          quantity: qty,
+          price: buy,
+          executedAt: timestamp || undefined,
+          ...(assetClass === "STOCK" ? { market } : {})
+        })
+      });
       return holding;
     },
     onSuccess: () => {

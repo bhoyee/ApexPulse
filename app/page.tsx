@@ -213,6 +213,15 @@ export default async function DashboardPage() {
         symbols={ngxSymbols}
         displayCurrency="NGN"
       />
+      <TradesTable
+        initial={tradesSafe as any}
+        prices={priceList as any}
+        ownerName={settings?.fullName ?? ""}
+        minHoldingValueUsd={minHoldingValueUsd}
+        symbols={ngxSymbols}
+        displayCurrency="NGN"
+        subtitle="Each Bamboo/NGX buy you recorded; no live broker sync yet."
+      />
     </>
   );
 

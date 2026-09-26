@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
-import { getUsdRate } from "../../../lib/fx";
-
-// Markets whose native currency isn't USD -- the "Buy price" entered for
-// these is in that local currency and gets converted once here, so every
-// downstream component can keep assuming USD.
-const MARKET_CURRENCY: Record<string, string> = { NGX: "NGN" };
+import { getUsdRate, MARKET_CURRENCY } from "../../../lib/fx";
 
 export async function GET() {
   const session = await auth();

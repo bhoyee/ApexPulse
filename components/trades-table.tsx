@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { formatCurrency } from "../lib/utils";
+import { useFxRate } from "../lib/use-fx-rate";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
 import { Button } from "./ui/button";
@@ -50,7 +51,8 @@ export function TradesTable({
   ownerName,
   minHoldingValueUsd = 5,
   symbols,
-  subtitle = "Auto-synced from Binance; shows each fill and live P/L."
+  subtitle = "Auto-synced from Binance; shows each fill and live P/L.",
+  displayCurrency = "USD"
 }: {
   initial: Trade[];
   prices: Price[];
@@ -59,8 +61,12 @@ export function TradesTable({
   /** Restrict trade history to this set of symbols (e.g. one dashboard section). Omit to include everything. */
   symbols?: string[];
   subtitle?: string;
+  /** Everything is stored/calculated in USD; this only converts the final displayed numbers (e.g. "NGN" for the NGX section). */
+  displayCurrency?: string;
 }) {
   const client = useQueryClient();
+  const fxRate = useFxRate(displayCurrency);
+  const fmt = (usdValue: number) => formatCurrency(usdValue * fxRate, displayCurrency);
   const [page, setPage] = useState(1);
   const pageSize = 8;
   const [search, setSearch] = useState("");
@@ -228,10 +234,10 @@ export function TradesTable({
                     return [
                       t.symbol,
                       qty.toFixed(2),
-                      formatCurrency(buy),
-                      current ? formatCurrency(current) : "-",
-                      present ? formatCurrency(present) : "-",
-                      formatCurrency(pnl),
+                      fmt(buy),
+                      current ? fmt(current) : "-",
+                      present ? fmt(present) : "-",
+                      fmt(pnl),
                       new Date(t.executedAt).toLocaleString()
                     ];
                   })
@@ -241,9 +247,9 @@ export function TradesTable({
                   body: [
                     [
                       "Summary",
-                      formatCurrency(totals.invested),
-                      formatCurrency(totals.present),
-                      formatCurrency(totalPnl)
+                      fmt(totals.invested),
+                      fmt(totals.present),
+                      fmt(totalPnl)
                     ]
                   ],
                   startY: (doc as any).lastAutoTable.finalY + 8
@@ -274,12 +280,12 @@ export function TradesTable({
             <div key={t.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="flex items-center justify-between text-sm font-semibold">
                 <span>{t.symbol}</span>
-                <span className={pnlClass}>{formatCurrency(pnl)}</span>
+                <span className={pnlClass}>{fmt(pnl)}</span>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <div>
                   <p>Investment</p>
-                  <p className="text-foreground">{formatCurrency(investment)}</p>
+                  <p className="text-foreground">{fmt(investment)}</p>
                 </div>
                 <div>
                   <p>Qty</p>
@@ -287,18 +293,18 @@ export function TradesTable({
                 </div>
                 <div>
                   <p>Buy price</p>
-                  <p className="text-foreground">{formatCurrency(buyPrice)}</p>
+                  <p className="text-foreground">{fmt(buyPrice)}</p>
                 </div>
                 <div>
                   <p>Current price</p>
                   <p className="text-foreground">
-                    {currentPrice ? formatCurrency(currentPrice) : "—"}
+                    {currentPrice ? fmt(currentPrice) : "—"}
                   </p>
                 </div>
                 <div>
                   <p>Present value</p>
                   <p className="text-foreground">
-                    {presentValue ? formatCurrency(presentValue) : "-"}
+                    {presentValue ? fmt(presentValue) : "-"}
                   </p>
                 </div>
                 <div>
@@ -329,7 +335,7 @@ export function TradesTable({
           <thead className="bg-white/5">
             <tr>
               <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Symbol</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Investment (USD)</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Investment ({displayCurrency})</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Qty</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Buy Price</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Current Price</th>
@@ -351,17 +357,17 @@ export function TradesTable({
               return (
                 <tr key={t.id} className="hover:bg-white/5">
                   <td className="px-3 py-2 font-semibold">{t.symbol}</td>
-                  <td className="px-3 py-2 text-right text-sm">{formatCurrency(investment)}</td>
+                  <td className="px-3 py-2 text-right text-sm">{fmt(investment)}</td>
                   <td className="px-3 py-2 text-right text-sm">{qty.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right text-sm">{formatCurrency(buyPrice)}</td>
+                  <td className="px-3 py-2 text-right text-sm">{fmt(buyPrice)}</td>
                   <td className="px-3 py-2 text-right text-sm">
-                    {currentPrice ? formatCurrency(currentPrice) : "—"}
+                    {currentPrice ? fmt(currentPrice) : "—"}
                   </td>
                   <td className="px-3 py-2 text-right text-sm">
-                    {presentValue ? formatCurrency(presentValue) : "-"}
+                    {presentValue ? fmt(presentValue) : "-"}
                   </td>
                   <td className={`px-3 py-2 text-right text-sm ${pnlClass}`}>
-                    {formatCurrency(pnl)}
+                    {fmt(pnl)}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {new Date(t.executedAt).toLocaleString()}

@@ -111,7 +111,18 @@ async function getNgxTable(): Promise<Map<string, StockQuote>> {
   if (!ngxFetchInFlight) {
     ngxFetchInFlight = fetchFullNgxTable()
       .then((rows) => {
-        if (rows.size) ngxTableCache = { fetchedAt: Date.now(), rows };
+        if (rows.size) {
+          ngxTableCache = { fetchedAt: Date.now(), rows };
+          return rows;
+        }
+        // A graceful "no data" response (page unreachable/blocked, returns
+        // an empty map rather than throwing) would otherwise overwrite a
+        // still-recent cache with nothing -- serve the stale table instead,
+        // and still bump fetchedAt so retries stay rate-limited during an outage.
+        if (ngxTableCache) {
+          ngxTableCache = { ...ngxTableCache, fetchedAt: Date.now() };
+          return ngxTableCache.rows;
+        }
         return rows;
       })
       .catch(() => ngxTableCache?.rows ?? new Map())

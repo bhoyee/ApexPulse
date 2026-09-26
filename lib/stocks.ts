@@ -1,5 +1,6 @@
 import { getUsdRate } from "./fx";
 import { getMansaNgxQuotes } from "./mansa";
+import { getAfricanMarketsNgxQuotes } from "./african-markets";
 
 export interface StockQuote {
   symbol: string;
@@ -184,16 +185,33 @@ export async function getStockQuotes(
   if (!symbols.length) return [];
   if (market !== "NGX") return getUsStockQuotes(symbols);
 
-  if (!opts?.mansaApiKey) return getNgxStockQuotes(symbols);
+  if (!opts?.mansaApiKey) return getNgxWithFallbacks(symbols);
 
   // Mansa (structured, documented API) is primary when a key is configured;
-  // the free scraper fills in anything Mansa's response didn't cover
-  // (unrecognized field shape, ticker not in their universe, rate-limited).
+  // the fallback chain below fills in anything Mansa's response didn't
+  // cover (unrecognized field shape, ticker not in their universe,
+  // rate-limited, or -- as happened for hours on 2026-09-26 -- an outage
+  // in Mansa's own key-validation service).
   const mansaResults = await getMansaNgxQuotes(symbols, opts.mansaApiKey);
   const covered = new Set(mansaResults.map((q) => q.symbol));
   const missing = symbols.filter((s) => !covered.has(s.toUpperCase()));
   if (!missing.length) return mansaResults;
 
+  const fallback = await getNgxWithFallbacks(missing);
+  return [...mansaResults, ...fallback];
+}
+
+// AfricanMarkets (github.com/abkd1211/african-markets-api) is a free,
+// no-key, independently-run project -- a different backend/maintainer than
+// Mansa, so a Mansa outage doesn't take it down too. Tried before the
+// scraper since it returns structured JSON rather than parsing HTML, but
+// either one filling in a symbol the other missed is fine.
+async function getNgxWithFallbacks(symbols: string[]): Promise<StockQuote[]> {
+  const african = await getAfricanMarketsNgxQuotes(symbols);
+  const covered = new Set(african.map((q) => q.symbol));
+  const missing = symbols.filter((s) => !covered.has(s.toUpperCase()));
+  if (!missing.length) return african;
+
   const scraped = await getNgxStockQuotes(missing);
-  return [...mansaResults, ...scraped];
+  return [...african, ...scraped];
 }

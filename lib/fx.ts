@@ -1,3 +1,9 @@
+// Markets whose native currency isn't USD -- an amount entered against one
+// of these is in that local currency and gets converted to USD once at
+// write time, so every downstream component (holdings, trades, PnL) can
+// keep assuming USD internally.
+export const MARKET_CURRENCY: Record<string, string> = { NGX: "NGN" };
+
 const YAHOO_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 

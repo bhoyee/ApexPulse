@@ -124,6 +124,10 @@ model ApiSetting {
   resendApiKey      String?
   resendFrom        String?
   dailyEmailTo      String?
+  // Opt-in: emails you the moment Binance announces a new USDT spot listing
+  // (not the daily digest -- a separate, event-triggered alert), with an AI
+  // read and a countdown to when trading actually opens.
+  listingAlertsEnabled Boolean @default(false)
   minHoldingValueUsd Float   @default(5)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -167,6 +171,19 @@ model Signal {
   source      SignalSource @default(GROK)
   createdAt   DateTime     @default(now())
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per Binance "new listing" announcement we've already processed --
+// this is a market-wide event (same for every user), not per-user data, so
+// it's tracked once here to avoid re-alerting on the same announcement.
+model ListingAlert {
+  id        String    @id @default(cuid())
+  articleId String    @unique
+  symbol    String
+  pair      String
+  title     String
+  goLiveAt  DateTime?
+  createdAt DateTime  @default(now())
 }
 
 model EmailLog {

@@ -22,7 +22,7 @@ export interface SwingSignal {
   source: ModelChoice;
 }
 
-async function callOpenAI(prompt: string, key?: string) {
+export async function callOpenAI(prompt: string, key?: string) {
   key = key || process.env.OPENAI_API_KEY;
   if (!key) return null;
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -51,7 +51,7 @@ async function callOpenAI(prompt: string, key?: string) {
   return data.choices?.[0]?.message?.content as string;
 }
 
-async function callDeepSeek(prompt: string, key?: string) {
+export async function callDeepSeek(prompt: string, key?: string) {
   key = key || process.env.DEEPSEEK_API_KEY;
   if (!key) return null;
   const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
@@ -164,3 +164,71 @@ Return 0-5 ideas as a pure JSON array (no prose, no markdown fences). Each objec
   return fallbackSignals();
 }
 
+export interface ListingSignal {
+  confidence: number;
+  thesis: string;
+  stopLossPct: number;
+  takeProfitPct: number;
+  source: ModelChoice;
+}
+
+export const MIN_LISTING_CONFIDENCE = 70;
+
+// Unlike generateSwingSignals, there is no price/volume snapshot here -- the
+// pair isn't trading yet. The AI can only reason from the announcement text
+// and whatever it already knows about the project by name, which is a much
+// weaker basis than real market data, so this is scored on its own,
+// separate (and honestly labeled) confidence scale.
+export async function generateListingSignal(
+  listing: { symbol: string; pair: string; title: string; goLiveAt: Date | null },
+  opts?: { openaiKey?: string; deepseekKey?: string }
+): Promise<ListingSignal | null> {
+  const prompt = `Binance has officially announced a new spot listing (this is a real, confirmed exchange announcement, not a rumor or leak): "${listing.title}". The trading pair is ${listing.pair}, going live at ${listing.goLiveAt?.toISOString() ?? "an unspecified time"}.
+
+You have NO price history, volume, or chart data for this pair -- it is not trading yet, so this is not a technical setup. Base your assessment only on what you genuinely know about this specific project from its name/ticker (e.g. is it an established project you recognize being listed on a major exchange for the first time, versus a name you don't recognize at all). New listings are extremely volatile in their first hours and frequently spike then sell off hard -- state that risk explicitly regardless of your confidence level.
+
+Score confidence 0-100 for whether this looks like a legitimate, established project worth a small speculative position. Only score above 70 if you have specific, genuine knowledge that this project is reputable/established -- if you don't recognize the project, confidence must be low (well under 50). Do not inflate confidence just to give an answer; low confidence is a valid, honest response for a project you don't know.
+
+Return pure JSON (no prose, no markdown fences): { "confidence": number (0-100), "thesis": string (2-3 sentences: what you do or don't know about this project, plus the new-listing volatility risk), "stopLossPct": number (suggest wide, e.g. 15-25, given first-hours volatility), "takeProfitPct": number }`;
+
+  const parseOne = (raw: string, source: ModelChoice): ListingSignal | null => {
+    try {
+      const cleaned = raw.replace(/```json/gi, "```").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      const confidence = Number(parsed.confidence ?? 0);
+      if (!Number.isFinite(confidence)) return null;
+      return {
+        confidence,
+        thesis: parsed.thesis || "No specific knowledge of this project.",
+        stopLossPct: Number(parsed.stopLossPct ?? 20),
+        takeProfitPct: Number(parsed.takeProfitPct ?? 20),
+        source
+      };
+    } catch (error) {
+      console.warn("Listing AI parse failed", error);
+      return null;
+    }
+  };
+
+  try {
+    const ds = await callDeepSeek(prompt, opts?.deepseekKey);
+    if (ds) {
+      const result = parseOne(ds, "deepseek");
+      if (result) return result;
+    }
+  } catch (error) {
+    console.error("DeepSeek error (listing signal), falling back to OpenAI", error);
+  }
+
+  try {
+    const openai = await callOpenAI(prompt, opts?.openaiKey);
+    if (openai) {
+      const result = parseOne(openai, "openai");
+      if (result) return result;
+    }
+  } catch (error) {
+    console.error("OpenAI error (listing signal)", error);
+  }
+
+  return null;
+}

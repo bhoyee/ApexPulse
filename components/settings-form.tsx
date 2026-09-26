@@ -22,6 +22,7 @@ const schema = z.object({
   resendApiKey: z.string().optional(),
   resendFrom: z.string().email().optional(),
   dailyEmailTo: z.string().email().optional(),
+  listingAlertsEnabled: z.boolean().optional(),
   minHoldingValueUsd: z.coerce.number().min(0).optional()
 });
 
@@ -143,6 +144,17 @@ export function SettingsForm({ initial }: { initial?: Partial<FormValues> }) {
         <div className="space-y-2">
           <Label htmlFor="dailyEmailTo">Daily Signal Email</Label>
           <Input id="dailyEmailTo" type="email" {...form.register("dailyEmailTo")} placeholder="you@desk.io" />
+        </div>
+        <div className="flex items-center gap-2 md:col-span-2">
+          <input
+            id="listingAlertsEnabled"
+            type="checkbox"
+            className="h-4 w-4 rounded border-white/20 bg-transparent"
+            {...form.register("listingAlertsEnabled")}
+          />
+          <Label htmlFor="listingAlertsEnabled">
+            Email me the moment Binance announces a new USDT listing (separate from the daily digest)
+          </Label>
         </div>
         <div className="space-y-2">
           <Label htmlFor="minHoldingValueUsd">Minimum holding value to track ($)</Label>

@@ -13,17 +13,16 @@ import {
   Section,
   Text
 } from "@react-email/components";
-import { SwingSignal } from "./ai";
+import { SwingSignal, ListingSignal, MIN_LISTING_CONFIDENCE } from "./ai";
 import { formatCurrency } from "./utils";
+import type { ListingAnnouncement } from "./binance-listings";
 
-let resendClient: Resend | null = null;
-
-function getResend() {
-  if (!process.env.RESEND_API_KEY) return null;
-  if (!resendClient) {
-    resendClient = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resendClient;
+// Not cached as a singleton -- different users can have their own Resend
+// key (ApiSetting.resendApiKey), so each send resolves its own client
+// rather than locking in whichever key happened to be used first.
+function getResend(apiKey?: string) {
+  if (!apiKey) return null;
+  return new Resend(apiKey);
 }
 
 interface DailyProps {
@@ -93,11 +92,16 @@ export async function sendDailyEmail(props: {
   signals: SwingSignal[];
   holdings: { asset: string; amount: number; value: number }[];
   from?: string;
+  apiKey?: string;
 }) {
-  const client = getResend();
+  const apiKey = props.apiKey || process.env.RESEND_API_KEY;
+  const client = getResend(apiKey);
   const fromAddr = props.from || process.env.RESEND_FROM;
-  if (!client || !fromAddr) {
-    return { skipped: true };
+  if (!client) {
+    return { skipped: true, reason: "no Resend API key configured (Settings or RESEND_API_KEY)" };
+  }
+  if (!fromAddr) {
+    return { skipped: true, reason: "no Resend from-address configured (Settings or RESEND_FROM)" };
   }
 
   const html = render(<DailyEmail {...props} />);
@@ -105,6 +109,93 @@ export async function sendDailyEmail(props: {
     from: fromAddr,
     to: props.to,
     subject: "ApexPulse | AI Swing Signals",
+    html
+  });
+  return { sent: true };
+}
+
+interface ListingAlertProps {
+  userName?: string;
+  listing: ListingAnnouncement;
+  signal: ListingSignal | null;
+  suggestedBuyUsd: number | null;
+}
+
+export function ListingAlertEmail({ userName, listing, signal, suggestedBuyUsd }: ListingAlertProps) {
+  const meetsBar = signal && signal.confidence >= MIN_LISTING_CONFIDENCE;
+  return (
+    <Html>
+      <Head />
+      <Preview>New Binance listing: {listing.pair}</Preview>
+      <Body style={{ fontFamily: "Inter, Arial, sans-serif", background: "#0b1223", color: "#e2e8f0" }}>
+        <Container style={{ padding: "32px", background: "#0f172a", borderRadius: "18px" }}>
+          <Heading style={{ color: "#22d3ee", marginBottom: "12px" }}>
+            New Binance listing: {listing.pair}
+          </Heading>
+          <Text style={{ color: "#cbd5e1", marginBottom: "8px" }}>
+            Hi {userName ?? "trader"}, Binance just announced this -- trading opens{" "}
+            {listing.goLiveAt ? listing.goLiveAt.toUTCString() : "soon"}.
+          </Text>
+          <Text style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "24px" }}>
+            <a href={listing.url} style={{ color: "#22d3ee" }}>{listing.title}</a>
+          </Text>
+          <Section style={{ marginBottom: "24px" }}>
+            <Heading as="h3" style={{ color: "#e2e8f0", fontSize: "18px" }}>
+              AI read
+            </Heading>
+            {meetsBar && signal ? (
+              <>
+                <Text style={{ color: "#cbd5e1" }}>{signal.thesis}</Text>
+                <Text style={{ color: "#94a3b8", fontSize: "12px" }}>
+                  Confidence {signal.confidence}% · SL {signal.stopLossPct}% · TP {signal.takeProfitPct}%
+                  {suggestedBuyUsd ? ` · Suggested size ${formatCurrency(suggestedBuyUsd)}` : ""} ·{" "}
+                  {signal.source.toUpperCase()}
+                </Text>
+              </>
+            ) : (
+              <Text style={{ color: "#94a3b8" }}>
+                {signal
+                  ? `AI confidence (${signal.confidence}%) didn't clear our bar for a recommendation -- ${signal.thesis}`
+                  : "AI analysis wasn't available for this listing."}{" "}
+                No suggested position; this is announcement-only. There is no price history for a
+                brand-new listing, and new listings are extremely volatile in their first hours --
+                trade at your own risk if you choose to.
+              </Text>
+            )}
+          </Section>
+          <Text style={{ color: "#94a3b8", marginTop: "24px" }}>
+            Event-triggered alert, not part of your daily digest. Turn off in Settings if unwanted.
+          </Text>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+export async function sendListingAlertEmail(props: {
+  to: string;
+  userName?: string;
+  listing: ListingAnnouncement;
+  signal: ListingSignal | null;
+  suggestedBuyUsd: number | null;
+  from?: string;
+  apiKey?: string;
+}) {
+  const apiKey = props.apiKey || process.env.RESEND_API_KEY;
+  const client = getResend(apiKey);
+  const fromAddr = props.from || process.env.RESEND_FROM;
+  if (!client) {
+    return { skipped: true, reason: "no Resend API key configured (Settings or RESEND_API_KEY)" };
+  }
+  if (!fromAddr) {
+    return { skipped: true, reason: "no Resend from-address configured (Settings or RESEND_FROM)" };
+  }
+
+  const html = render(<ListingAlertEmail {...props} />);
+  await client.emails.send({
+    from: fromAddr,
+    to: props.to,
+    subject: `ApexPulse | New Listing: ${props.listing.pair}`,
     html
   });
   return { sent: true };

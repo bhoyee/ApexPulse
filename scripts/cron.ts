@@ -5,8 +5,9 @@ import {
   SyncJobType,
   TransactionType
 } from "@prisma/client";
-import { generateSwingSignals } from "../lib/ai";
-import { sendDailyEmail } from "../lib/email";
+import { generateSwingSignals, generateListingSignal, MIN_LISTING_CONFIDENCE } from "../lib/ai";
+import { sendDailyEmail, sendListingAlertEmail } from "../lib/email";
+import { getNewUsdtListings } from "../lib/binance-listings";
 import {
   getMarketTickers,
   getSwingCandidateMarkets,
@@ -162,23 +163,40 @@ async function runDaily() {
     });
 
     const recipient = user.apiSetting?.dailyEmailTo || user.email;
+    // Per-user Settings values take priority over the server-wide env vars
+    // -- a user's own Resend key (entered in Settings) was previously
+    // ignored entirely in favor of an env var that was never set, which is
+    // why no daily email had ever gone out despite Settings looking configured.
+    const apiKey = user.apiSetting?.resendApiKey || process.env.RESEND_API_KEY;
     const fromAddr = user.apiSetting?.resendFrom || process.env.RESEND_FROM;
-    if (recipient && process.env.RESEND_API_KEY && process.env.RESEND_FROM) {
+    if (recipient) {
       try {
-        await sendDailyEmail({
+        const result = await sendDailyEmail({
           to: recipient,
-          from: fromAddr,
+          from: fromAddr ?? undefined,
+          apiKey,
           userName: user.name ?? undefined,
           signals,
           holdings: holdingsValue
         });
-        await prisma.emailLog.create({
-          data: {
-            userId: user.id,
-            subject: "ApexPulse | AI Swing Signals",
-            status: "sent"
-          }
-        });
+        if ("skipped" in result && result.skipped) {
+          await prisma.emailLog.create({
+            data: {
+              userId: user.id,
+              subject: "ApexPulse | AI Swing Signals",
+              status: "skipped",
+              error: result.reason
+            }
+          });
+        } else {
+          await prisma.emailLog.create({
+            data: {
+              userId: user.id,
+              subject: "ApexPulse | AI Swing Signals",
+              status: "sent"
+            }
+          });
+        }
       } catch (error: any) {
         await prisma.emailLog.create({
           data: {
@@ -209,6 +227,122 @@ async function runDaily() {
   }
 }
 
+async function estimateCryptoPortfolioUsd(user: any): Promise<number> {
+  const cryptoHoldings = (user.holdings ?? []).filter((h: any) => h.assetClass !== "STOCK");
+  if (!cryptoHoldings.length) return 0;
+  const symbols = Array.from(new Set(cryptoHoldings.map((h: any) => h.asset.toUpperCase())));
+  const tickers = await getMarketTickers(symbols as string[]);
+  const priceMap = tickers.reduce<Record<string, number>>((acc, t) => {
+    acc[t.symbol.toUpperCase()] = t.price;
+    return acc;
+  }, {});
+  return cryptoHoldings.reduce(
+    (sum: number, h: any) => sum + Number(h.amount) * (priceMap[h.asset.toUpperCase()] ?? 0),
+    0
+  );
+}
+
+// Binance's own "new listing" announcements, checked far more often than the
+// daily signal cycle since the whole point is advance notice before trading
+// opens -- a 12-24h-later daily email would be useless for this.
+async function checkNewListings() {
+  let listings: Awaited<ReturnType<typeof getNewUsdtListings>>;
+  try {
+    listings = await getNewUsdtListings();
+  } catch (error) {
+    console.error("Listing check failed", error);
+    return;
+  }
+  if (!listings.length) return;
+
+  const existing = await prisma.listingAlert.findMany({
+    where: { articleId: { in: listings.map((l) => l.articleId) } },
+    select: { articleId: true }
+  });
+  const seenIds = new Set(existing.map((e) => e.articleId));
+  const fresh = listings.filter((l) => !seenIds.has(l.articleId));
+  if (!fresh.length) return;
+
+  const now = Date.now();
+  const users = await prisma.user.findMany({
+    where: { apiSetting: { listingAlertsEnabled: true } },
+    include: { apiSetting: true, holdings: true }
+  });
+
+  for (const listing of fresh) {
+    // Recorded immediately, before any email logic, so a crash mid-loop or
+    // a retry on the next poll never re-alerts on the same announcement.
+    await prisma.listingAlert.create({
+      data: {
+        articleId: listing.articleId,
+        symbol: listing.symbol,
+        pair: listing.pair,
+        title: listing.title,
+        goLiveAt: listing.goLiveAt
+      }
+    });
+
+    // This poller's first run (or a restart) can surface announcements from
+    // days ago; those are recorded above so they're never reprocessed, but
+    // skipped here since "trading opened 2 days ago" isn't the advance
+    // countdown this feature promises.
+    if (!listing.goLiveAt || listing.goLiveAt.getTime() <= now) continue;
+
+    for (const user of users) {
+      const recipient = user.apiSetting?.dailyEmailTo || user.email;
+      if (!recipient) continue;
+
+      let signal = null;
+      try {
+        signal = await generateListingSignal(listing, {
+          openaiKey: user.apiSetting?.openaiApiKey ?? undefined,
+          deepseekKey: user.apiSetting?.deepseekApiKey ?? undefined
+        });
+      } catch (error) {
+        console.error("Listing signal generation failed", error);
+      }
+
+      // Sized off the user's own crypto book (this trades on Binance, same
+      // account) and clamped to a conservative range regardless of
+      // confidence or portfolio size -- a brand-new listing with zero price
+      // history never warrants a large position.
+      let suggestedBuyUsd: number | null = null;
+      if (signal && signal.confidence >= MIN_LISTING_CONFIDENCE) {
+        const portfolioUsd = await estimateCryptoPortfolioUsd(user);
+        const raw = portfolioUsd * (signal.confidence / 100) * 0.02;
+        suggestedBuyUsd = Math.min(200, Math.max(10, raw));
+      }
+
+      const apiKey = user.apiSetting?.resendApiKey || process.env.RESEND_API_KEY;
+      const fromAddr = user.apiSetting?.resendFrom || process.env.RESEND_FROM;
+      const subject = `ApexPulse | New Listing: ${listing.pair}`;
+      try {
+        const result = await sendListingAlertEmail({
+          to: recipient,
+          from: fromAddr ?? undefined,
+          apiKey,
+          userName: user.name ?? undefined,
+          listing,
+          signal,
+          suggestedBuyUsd
+        });
+        await prisma.emailLog.create({
+          data: {
+            userId: user.id,
+            subject,
+            status: "skipped" in result && result.skipped ? "skipped" : "sent",
+            error: "skipped" in result ? result.reason : undefined
+          }
+        });
+      } catch (error: any) {
+        await prisma.emailLog.create({
+          data: { userId: user.id, subject, status: "failed", error: error?.message ?? "unknown" }
+        });
+      }
+    }
+  }
+}
+
 function msUntilNext13UTC() {
   const now = new Date();
   const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 13, 0, 0, 0));
@@ -227,5 +361,18 @@ async function loop() {
   setTimeout(loop, msUntilNext13UTC());
 }
 
+const LISTING_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 min: frequent enough for advance notice, gentle on Binance's public CMS
+
+async function listingLoop() {
+  try {
+    await checkNewListings();
+  } catch (error) {
+    console.error("Listing check loop failure", error);
+  }
+  setTimeout(listingLoop, LISTING_CHECK_INTERVAL_MS);
+}
+
 // Kick off: wait until next 13:00 UTC, but also run once at start so you have data now.
 loop();
+// Independent, much faster poll for new-listing alerts -- event-triggered, not on the daily schedule.
+listingLoop();

@@ -56,17 +56,41 @@ export async function POST(req: Request) {
   });
 
   const to = user.apiSetting?.dailyEmailTo || user.email;
-  if (to && process.env.RESEND_API_KEY) {
-    await sendDailyEmail({
-      to,
-      userName: user.name ?? undefined,
-      signals,
-      holdings: user.holdings.map((h) => ({
-        asset: h.asset,
-        amount: Number(h.amount),
-        value: Number(h.amount) * (markets.find((m) => m.symbol === h.asset)?.price ?? 0)
-      }))
-    });
+  if (to) {
+    // Per-user Settings values take priority over the server-wide env vars.
+    const apiKey = user.apiSetting?.resendApiKey || process.env.RESEND_API_KEY;
+    const fromAddr = user.apiSetting?.resendFrom || process.env.RESEND_FROM;
+    try {
+      const result = await sendDailyEmail({
+        to,
+        from: fromAddr ?? undefined,
+        apiKey,
+        userName: user.name ?? undefined,
+        signals,
+        holdings: user.holdings.map((h) => ({
+          asset: h.asset,
+          amount: Number(h.amount),
+          value: Number(h.amount) * (markets.find((m) => m.symbol === h.asset)?.price ?? 0)
+        }))
+      });
+      await prisma.emailLog.create({
+        data: {
+          userId: user.id,
+          subject: "ApexPulse | AI Swing Signals",
+          status: "skipped" in result && result.skipped ? "skipped" : "sent",
+          error: "skipped" in result ? result.reason : undefined
+        }
+      });
+    } catch (error: any) {
+      await prisma.emailLog.create({
+        data: {
+          userId: user.id,
+          subject: "ApexPulse | AI Swing Signals",
+          status: "failed",
+          error: error?.message ?? "unknown"
+        }
+      });
+    }
   }
 
   return NextResponse.json({ ok: true, signals });

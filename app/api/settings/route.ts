@@ -36,6 +36,7 @@ export async function PUT(req: Request) {
     resendApiKey: body.resendApiKey || null,
     resendFrom: body.resendFrom || null,
     dailyEmailTo: body.dailyEmailTo || null,
+    listingAlertsEnabled: Boolean(body.listingAlertsEnabled),
     minHoldingValueUsd:
       Number.isFinite(minHoldingValueUsd) && minHoldingValueUsd >= 0
         ? minHoldingValueUsd

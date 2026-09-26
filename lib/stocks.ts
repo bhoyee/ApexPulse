@@ -55,7 +55,13 @@ async function fetchNgxPage(url: string): Promise<{ rows: Map<string, StockQuote
     headers: { "User-Agent": YAHOO_UA },
     signal: AbortSignal.timeout(8000)
   });
-  if (!res.ok) return { rows, next: null };
+  if (!res.ok) {
+    // Logged (not thrown) so an outage/block is traceable in `docker logs`.
+    // Only fires once per NGX_CACHE_TTL_MS window since callers coalesce
+    // into one in-flight fetch, so it won't spam the log on every poll.
+    console.warn(`[ngx-scraper] fetch failed: ${res.status} ${res.statusText} for ${url}`);
+    return { rows, next: null };
+  }
   const html = await res.text();
 
   for (const match of Array.from(html.matchAll(NGX_ROW))) {
@@ -125,7 +131,10 @@ async function getNgxTable(): Promise<Map<string, StockQuote>> {
         }
         return rows;
       })
-      .catch(() => ngxTableCache?.rows ?? new Map())
+      .catch((err) => {
+        console.warn(`[ngx-scraper] fetch threw: ${err instanceof Error ? err.message : String(err)}`);
+        return ngxTableCache?.rows ?? new Map();
+      })
       .finally(() => {
         ngxFetchInFlight = null;
       });

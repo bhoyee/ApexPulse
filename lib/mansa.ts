@@ -28,7 +28,15 @@ async function fetchMansaNgxTable(apiKey: string): Promise<Map<string, StockQuot
     headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
     signal: AbortSignal.timeout(10000)
   });
-  if (!res.ok) return rows;
+  if (!res.ok) {
+    // Logged (not thrown) so this is traceable in `docker logs` without
+    // breaking the graceful-fallback behavior callers rely on. This only
+    // fires once per CACHE_TTL_MS window since callers coalesce into one
+    // in-flight fetch, so it won't spam the log on every 15s poll.
+    const body = await res.text().catch(() => "");
+    console.warn(`[mansa] NGX fetch failed: ${res.status} ${res.statusText} -- ${body.slice(0, 300)}`);
+    return rows;
+  }
 
   const data = await res.json();
   const list: any[] = Array.isArray(data) ? data : data?.data ?? data?.results ?? data?.stocks ?? [];
@@ -75,7 +83,10 @@ async function getTable(apiKey: string): Promise<Map<string, StockQuote>> {
           }
           return rows;
         })
-        .catch(() => (cache?.apiKey === apiKey ? cache.rows : new Map()))
+        .catch((err) => {
+          console.warn(`[mansa] NGX fetch threw: ${err instanceof Error ? err.message : String(err)}`);
+          return cache?.apiKey === apiKey ? cache.rows : new Map();
+        })
         .finally(() => {
           inFlight = null;
         })

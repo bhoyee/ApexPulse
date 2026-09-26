@@ -28,7 +28,10 @@ export async function getBinanceBalances(
     signal: AbortSignal.timeout(10000)
   });
 
-  if (!res.ok) throw new Error("Failed to fetch Binance balances");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Failed to fetch Binance balances: ${res.status} ${res.statusText} -- ${body.slice(0, 300)}`);
+  }
 
   const data = (await res.json()) as {
     balances: { asset: string; free: string; locked: string }[];

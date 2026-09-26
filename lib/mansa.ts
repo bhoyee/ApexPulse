@@ -61,10 +61,21 @@ async function getTable(apiKey: string): Promise<Map<string, StockQuote>> {
       apiKey,
       promise: fetchMansaNgxTable(apiKey)
         .then((rows) => {
-          if (rows.size) cache = { fetchedAt: Date.now(), apiKey, rows };
+          if (rows.size) {
+            cache = { fetchedAt: Date.now(), apiKey, rows };
+            return rows;
+          }
+          // A graceful "no data" response (e.g. a 503 during a key-validation
+          // outage) resolves an empty map rather than throwing -- without this,
+          // that empty map would overwrite a still-recent cache with nothing,
+          // even though the stale cache is a better answer than no price at all.
+          if (cache?.apiKey === apiKey) {
+            cache = { ...cache, fetchedAt: Date.now() }; // still rate-limit retries during an outage
+            return cache.rows;
+          }
           return rows;
         })
-        .catch(() => cache?.rows ?? new Map())
+        .catch(() => (cache?.apiKey === apiKey ? cache.rows : new Map()))
         .finally(() => {
           inFlight = null;
         })

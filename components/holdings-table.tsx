@@ -23,6 +23,9 @@ interface Price {
   symbol: string;
   price: number;
   change24h?: number;
+  /** True when this is a fallback (cost basis) price, not a live quote --
+   * e.g. every upstream NGX source was unreachable when the price was fetched. */
+  stale?: boolean;
 }
 
 interface Trade {
@@ -134,10 +137,11 @@ export function HoldingsTable({
 
   const rowsRaw = holdings.map((h) => {
     const market = priceMap[h.asset.toUpperCase()];
-    const current = (market?.price ?? 0) * Number(h.amount);
+    const currentPrice = market?.price ?? 0;
+    const current = currentPrice * Number(h.amount);
     const invest =
       investMap[h.asset.toUpperCase()] ?? Number(h.amount) * Number(h.avgBuyPrice ?? 0);
-    return { ...h, current, invest, pnl: current - invest, market };
+    return { ...h, current, currentPrice, invest, pnl: current - invest, market };
   });
 
   const filtered = rowsRaw
@@ -212,12 +216,30 @@ export function HoldingsTable({
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               <div>
+                <p>Buy price</p>
+                <p className="text-foreground">{fmt(Number(row.avgBuyPrice ?? 0))}</p>
+              </div>
+              <div>
+                <p>Qty</p>
+                <p className="text-foreground">{Number(row.amount).toFixed(2)}</p>
+              </div>
+              <div>
                 <p>Invest</p>
                 <p className="text-foreground">{fmt(row.invest ?? 0)}</p>
               </div>
               <div>
-                <p>Amount</p>
-                <p className="text-foreground">{Number(row.amount).toFixed(2)}</p>
+                <p>Current price</p>
+                <p className="flex items-center gap-1.5 text-foreground">
+                  {fmt(row.currentPrice ?? 0)}
+                  {row.market?.stale && (
+                    <span
+                      title="No live quote available right now -- showing cost basis until a price feed responds."
+                      className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-normal uppercase text-amber-400"
+                    >
+                      stale
+                    </span>
+                  )}
+                </p>
               </div>
               <div>
                 <p>Value</p>
@@ -232,7 +254,7 @@ export function HoldingsTable({
             </div>
             {row.createdAt && (
               <div className="mt-1 text-[11px] text-muted-foreground">
-                {new Date(row.createdAt).toLocaleString()}
+                Added {new Date(row.createdAt).toLocaleString()}
               </div>
             )}
           </div>
@@ -275,10 +297,13 @@ export function HoldingsTable({
           <thead className="bg-white/5">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Asset</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Buy price</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Qty</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Invest</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Amount</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Current price</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Value</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">PnL</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Added</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -293,13 +318,30 @@ export function HoldingsTable({
                     </span>
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">{fmt(row.invest ?? 0)}</td>
+                <td className="px-4 py-3 text-right">{fmt(Number(row.avgBuyPrice ?? 0))}</td>
                 <td className="px-4 py-3 text-right">{Number(row.amount).toFixed(2)}</td>
+                <td className="px-4 py-3 text-right">{fmt(row.invest ?? 0)}</td>
+                <td className="px-4 py-3 text-right">
+                  <span className="flex items-center justify-end gap-1.5">
+                    {fmt(row.currentPrice ?? 0)}
+                    {row.market?.stale && (
+                      <span
+                        title="No live quote available right now -- showing cost basis until a price feed responds."
+                        className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal uppercase text-amber-400"
+                      >
+                        no live price
+                      </span>
+                    )}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-right">{fmt(row.current)}</td>
                 <td
                   className={`px-4 py-3 text-right ${row.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}
                 >
                   {fmt(row.pnl)}
+                </td>
+                <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                  {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "--"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Button
@@ -315,7 +357,7 @@ export function HoldingsTable({
             ))}
             {!rows.length && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-4 py-6 text-center text-sm text-muted-foreground">
                   No holdings here yet.
                 </td>
               </tr>
@@ -324,6 +366,8 @@ export function HoldingsTable({
           <tfoot className="bg-white/5">
             <tr>
               <td className="px-4 py-3 font-semibold">Total</td>
+              <td />
+              <td />
               <td className="px-4 py-3 text-right font-semibold">{fmt(totalInvest)}</td>
               <td />
               <td className="px-4 py-3 text-right font-semibold">{fmt(totalValue)}</td>
@@ -332,6 +376,7 @@ export function HoldingsTable({
               >
                 {fmt(totalPnl)}
               </td>
+              <td />
               <td />
             </tr>
           </tfoot>

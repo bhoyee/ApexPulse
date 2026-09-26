@@ -66,7 +66,9 @@ export async function getPricesForHoldings(
     .filter((h) => !liveSymbols.has(h.asset.toUpperCase()))
     .map((h) => {
       const price = Number(h.avgBuyPrice ?? 0);
-      return { symbol: h.asset.toUpperCase(), price, change24h: 0, volume: 0, high: price, low: price };
+      // Marked `stale` so the UI can show "no live price" instead of quietly
+      // presenting cost basis as if it were a current quote.
+      return { symbol: h.asset.toUpperCase(), price, change24h: 0, volume: 0, high: price, low: price, stale: true };
     });
 
   return [...cryptoMarkets, ...trading212Quotes, ...liveStockQuotes, ...fallbackQuotes];

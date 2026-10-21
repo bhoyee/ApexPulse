@@ -226,12 +226,20 @@ export function DailyEmail({ userName, signals, holdingGroups }: DailyProps) {
               <StatBlock label="Entry" value={s.entryPrice ? formatCurrency(s.entryPrice) : "n/a"} />
               <StatBlock
                 label="Stop Loss"
-                value={s.stopLoss !== undefined ? `${s.stopLoss}%` : "n/a"}
+                value={
+                  s.stopLoss !== undefined
+                    ? `${s.stopLoss}%${s.entryPrice ? ` (${formatCurrency(s.entryPrice * (1 + s.stopLoss / 100))})` : ""}`
+                    : "n/a"
+                }
                 valueColor={palette.negative}
               />
               <StatBlock
                 label="Take Profit"
-                value={s.takeProfit !== undefined ? `${s.takeProfit}%` : "n/a"}
+                value={
+                  s.takeProfit !== undefined
+                    ? `${s.takeProfit}%${s.entryPrice ? ` (${formatCurrency(s.entryPrice * (1 + s.takeProfit / 100))})` : ""}`
+                    : "n/a"
+                }
                 valueColor={palette.positive}
               />
             </Row>

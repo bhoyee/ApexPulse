@@ -23,6 +23,14 @@ async function fetchSignals(refresh = false): Promise<Signal[]> {
   return res.json();
 }
 
+// stopLoss/takeProfit are stored as %-from-entry (e.g. -3.5, 6); this turns
+// those into the actual price level so "SL -3.5%" also shows "$4.98", not
+// just the percentage on its own.
+function priceAtPct(entry: number | undefined | null, pct: number | undefined | null) {
+  if (entry === undefined || entry === null || pct === undefined || pct === null) return null;
+  return entry * (1 + pct / 100);
+}
+
 export function SignalList({ initial }: { initial: Signal[] }) {
   const { data, isFetching, refetch } = useQuery({
     queryKey: ["signals"],
@@ -56,34 +64,38 @@ export function SignalList({ initial }: { initial: Signal[] }) {
         </Button>
       </div>
       <div className="space-y-3">
-        {data?.map((s) => (
-          <div key={s.id ?? s.symbol} className="rounded-lg border border-white/5 bg-white/5 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="rounded-md bg-primary/20 px-2 py-1 text-xs font-semibold text-primary">
-                  {s.symbol}
-                </span>
-                <span className="text-xs text-muted-foreground uppercase">{s.source}</span>
+        {data?.map((s) => {
+          const entry = s.entryPrice !== undefined && s.entryPrice !== null ? Number(s.entryPrice) : null;
+          const slPrice = priceAtPct(entry, s.stopLoss);
+          const tpPrice = priceAtPct(entry, s.takeProfit);
+          return (
+            <div key={s.id ?? s.symbol} className="rounded-lg border border-white/5 bg-white/5 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-primary/20 px-2 py-1 text-xs font-semibold text-primary">
+                    {s.symbol}
+                  </span>
+                  <span className="text-xs text-muted-foreground uppercase">{s.source}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <BadgeDollarSign className="h-4 w-4" />
+                  <span>Conf {s.confidence}%</span>
+                  <span>Entry {entry !== null ? `$${entry.toFixed(4)}` : "-"}</span>
+                  <span>
+                    SL {s.stopLoss ?? "-"}%{slPrice !== null ? ` ($${slPrice.toFixed(4)})` : ""}
+                  </span>
+                  <span>
+                    TP {s.takeProfit ?? "-"}%{tpPrice !== null ? ` ($${tpPrice.toFixed(4)})` : ""}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <BadgeDollarSign className="h-4 w-4" />
-                <span>Conf {s.confidence}%</span>
-                <span>
-                  Entry {" "}
-                  {s.entryPrice !== undefined && s.entryPrice !== null
-                    ? `$${Number(s.entryPrice).toFixed(4)}`
-                    : "-"}
-                </span>
-                <span>SL {s.stopLoss ?? "-"}%</span>
-                <span>TP {s.takeProfit ?? "-"}%</span>
-              </div>
+              <p className="mt-2 text-sm text-foreground">{s.summary}</p>
+              <p className="text-xs text-muted-foreground">
+                Issued {new Date(s.createdAt ?? Date.now()).toLocaleString()}
+              </p>
             </div>
-            <p className="mt-2 text-sm text-foreground">{s.summary}</p>
-            <p className="text-xs text-muted-foreground">
-              Issued {new Date(s.createdAt ?? Date.now()).toLocaleString()}
-            </p>
-          </div>
-        ))}
+          );
+        })}
         {!data?.length && (
           <div className="rounded-lg border border-white/5 bg-white/5 p-4 text-sm text-muted-foreground">
             No coins currently clear the 80%+ conviction bar. That's expected some days -- click Refresh

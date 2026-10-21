@@ -3,7 +3,9 @@ import { auth } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 import { generateSwingSignals } from "../../../../lib/ai";
 import { getSwingCandidateMarkets } from "../../../../lib/binance";
-import { sendDailyEmail } from "../../../../lib/email";
+import { sendDailyEmail, type HoldingGroup } from "../../../../lib/email";
+import { getPricesForHoldings } from "../../../../lib/pricing";
+import { getUsdRate } from "../../../../lib/fx";
 
 function isBearerAuthorized(req: Request) {
   const token = process.env.SYNC_TOKEN;
@@ -60,6 +62,54 @@ export async function POST(req: Request) {
     // Per-user Settings values take priority over the server-wide env vars.
     const apiKey = user.apiSetting?.resendApiKey || process.env.RESEND_API_KEY;
     const fromAddr = user.apiSetting?.resendFrom || process.env.RESEND_FROM;
+
+    // `markets` is Binance-only (the swing-signal candidate universe), so
+    // pricing every holding off it left NGX/Trading212 rows at $0 -- this
+    // resolves each holding through its actual price source instead.
+    const allMarkets = await getPricesForHoldings(user.holdings, holdingSymbols, {
+      mansaApiKey: user.apiSetting?.mansaApiKey ?? undefined
+    });
+    const priceMap = new Map(allMarkets.map((m) => [m.symbol.toUpperCase(), m.price]));
+    const minHoldingValueUsd = user.apiSetting?.minHoldingValueUsd ?? 5;
+    const toRow = (h: (typeof user.holdings)[number]) => ({
+      asset: h.asset,
+      amount: Number(h.amount),
+      valueUsd: Number(h.amount) * (priceMap.get(h.asset.toUpperCase()) ?? 0)
+    });
+    const aboveDust = (r: { valueUsd: number }) => r.valueUsd > minHoldingValueUsd;
+    const ngxHoldings = user.holdings.filter((h) => h.assetClass === "STOCK" && h.market === "NGX");
+    const ngxFxRate = ngxHoldings.length ? await getUsdRate("NGN") : 1;
+
+    const holdingGroups: HoldingGroup[] = [
+      {
+        label: "Crypto (Binance)",
+        displayCurrency: "USD",
+        fxRate: 1,
+        rows: user.holdings.filter((h) => h.assetClass !== "STOCK").map(toRow).filter(aboveDust)
+      },
+      {
+        label: "Trading 212",
+        displayCurrency: "USD",
+        fxRate: 1,
+        rows: user.holdings.filter((h) => h.source === "trading212").map(toRow).filter(aboveDust)
+      },
+      {
+        label: "Nigeria Stock (NGX)",
+        displayCurrency: "NGN",
+        fxRate: ngxFxRate,
+        rows: ngxHoldings.map(toRow).filter(aboveDust)
+      },
+      {
+        label: "Other Stocks",
+        displayCurrency: "USD",
+        fxRate: 1,
+        rows: user.holdings
+          .filter((h) => h.assetClass === "STOCK" && h.market !== "NGX" && h.source !== "trading212")
+          .map(toRow)
+          .filter(aboveDust)
+      }
+    ];
+
     try {
       const result = await sendDailyEmail({
         to,
@@ -67,11 +117,7 @@ export async function POST(req: Request) {
         apiKey,
         userName: user.name ?? undefined,
         signals,
-        holdings: user.holdings.map((h) => ({
-          asset: h.asset,
-          amount: Number(h.amount),
-          value: Number(h.amount) * (markets.find((m) => m.symbol === h.asset)?.price ?? 0)
-        }))
+        holdingGroups
       });
       await prisma.emailLog.create({
         data: {

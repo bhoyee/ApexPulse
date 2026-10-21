@@ -75,6 +75,11 @@ describe("POST /api/cron/daily", () => {
     binanceMock.getSwingCandidateMarkets.mockResolvedValue([
       { symbol: "HBAR", price: 0.1, change24h: 0, volume: 0, quoteVolume: 0, high: 0.1, low: 0.1 }
     ]);
+    // The route also prices every holding (not just swing-signal candidates)
+    // via getPricesForHoldings, which calls this for the crypto side.
+    binanceMock.getMarketTickers.mockResolvedValue([
+      { symbol: "HBAR", price: 0.1, change24h: 0, volume: 0, quoteVolume: 0, high: 0.1, low: 0.1 }
+    ]);
     aiMock.generateSwingSignals.mockResolvedValue([
       { symbol: "HBAR", thesis: "test", confidence: 80, source: "openai" }
     ]);

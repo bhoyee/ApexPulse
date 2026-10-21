@@ -6,8 +6,10 @@ import {
   TransactionType
 } from "@prisma/client";
 import { generateSwingSignals, generateListingSignal, MIN_LISTING_CONFIDENCE } from "../lib/ai";
-import { sendDailyEmail, sendListingAlertEmail } from "../lib/email";
+import { sendDailyEmail, sendListingAlertEmail, type HoldingGroup } from "../lib/email";
 import { getNewUsdtListings } from "../lib/binance-listings";
+import { getPricesForHoldings } from "../lib/pricing";
+import { getUsdRate } from "../lib/fx";
 import {
   getMarketTickers,
   getSwingCandidateMarkets,
@@ -133,14 +135,59 @@ async function runDaily() {
 
     const markets = await getSwingCandidateMarkets(symbols);
 
-    const holdingsValue = refreshedHoldings.map((h) => {
-      const price = markets.find((m) => m.symbol === h.asset)?.price ?? 0;
-      return {
-        asset: h.asset,
-        amount: Number(h.amount),
-        value: Number(h.amount) * price
-      };
+    // Swing-signal candidates (`markets`) are Binance-only by design, but the
+    // email's portfolio snapshot covers every broker the user holds --
+    // pricing it off `markets` alone left every NGX/Trading212 row at $0.
+    // getPricesForHoldings resolves each holding through the right source
+    // (Binance, Trading212's stored snapshot, or the NGX fallback chain).
+    const allMarkets = await getPricesForHoldings(refreshedHoldings, symbols, {
+      mansaApiKey: user.apiSetting?.mansaApiKey ?? undefined
     });
+    const priceMap = new Map(allMarkets.map((m) => [m.symbol.toUpperCase(), m.price]));
+    const minHoldingValueUsd = user.apiSetting?.minHoldingValueUsd ?? 5;
+
+    const toRow = (h: (typeof refreshedHoldings)[number]) => ({
+      asset: h.asset,
+      amount: Number(h.amount),
+      valueUsd: Number(h.amount) * (priceMap.get(h.asset.toUpperCase()) ?? 0)
+    });
+    const aboveDust = (r: { valueUsd: number }) => r.valueUsd > minHoldingValueUsd;
+
+    const ngxHoldings = refreshedHoldings.filter((h) => h.assetClass === "STOCK" && h.market === "NGX");
+    const ngxFxRate = ngxHoldings.length ? await getUsdRate("NGN") : 1;
+
+    // Mirrors the dashboard's own Crypto/Trading212/Nigeria Stock tab split
+    // -- a single flat list mixing every broker (and every dust position)
+    // together in one USD table doesn't tell you much at a glance.
+    const holdingGroups: HoldingGroup[] = [
+      {
+        label: "Crypto (Binance)",
+        displayCurrency: "USD",
+        fxRate: 1,
+        rows: refreshedHoldings.filter((h) => h.assetClass !== "STOCK").map(toRow).filter(aboveDust)
+      },
+      {
+        label: "Trading 212",
+        displayCurrency: "USD",
+        fxRate: 1,
+        rows: refreshedHoldings.filter((h) => h.source === "trading212").map(toRow).filter(aboveDust)
+      },
+      {
+        label: "Nigeria Stock (NGX)",
+        displayCurrency: "NGN",
+        fxRate: ngxFxRate,
+        rows: ngxHoldings.map(toRow).filter(aboveDust)
+      },
+      {
+        label: "Other Stocks",
+        displayCurrency: "USD",
+        fxRate: 1,
+        rows: refreshedHoldings
+          .filter((h) => h.assetClass === "STOCK" && h.market !== "NGX" && h.source !== "trading212")
+          .map(toRow)
+          .filter(aboveDust)
+      }
+    ];
 
     const signals = await generateSwingSignals(markets, {
       openaiKey: user.apiSetting?.openaiApiKey ?? undefined,
@@ -177,7 +224,7 @@ async function runDaily() {
           apiKey,
           userName: user.name ?? undefined,
           signals,
-          holdings: holdingsValue
+          holdingGroups
         });
         if ("skipped" in result && result.skipped) {
           await prisma.emailLog.create({

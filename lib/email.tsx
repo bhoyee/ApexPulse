@@ -98,17 +98,28 @@ function StatBlock({ label, value, valueColor }: { label: string; value: string;
   );
 }
 
+export interface HoldingGroup {
+  /** e.g. "Crypto (Binance)", "Trading 212", "Nigeria Stock (NGX)" */
+  label: string;
+  /** Display currency for this group only -- e.g. "NGN" for NGX. */
+  displayCurrency: string;
+  /** USD -> displayCurrency rate (1 for USD groups). */
+  fxRate: number;
+  rows: { asset: string; amount: number; valueUsd: number }[];
+}
+
 interface DailyProps {
   userName?: string;
   signals: SwingSignal[];
-  holdings: { asset: string; amount: number; value: number }[];
+  holdingGroups: HoldingGroup[];
 }
 
-export function DailyEmail({ userName, signals, holdings }: DailyProps) {
-  const value = holdings.reduce((t, h) => t + h.value, 0);
+export function DailyEmail({ userName, signals, holdingGroups }: DailyProps) {
+  const totalUsd = holdingGroups.reduce((t, g) => t + g.rows.reduce((s, r) => s + r.valueUsd, 0), 0);
+  const nonEmptyGroups = holdingGroups.filter((g) => g.rows.length > 0);
 
   return (
-    <EmailShell preview={`${signals.length} swing setup${signals.length === 1 ? "" : "s"} today, portfolio ${formatCurrency(value)}`}>
+    <EmailShell preview={`${signals.length} swing setup${signals.length === 1 ? "" : "s"} today, portfolio ${formatCurrency(totalUsd)}`}>
       <Heading style={{ color: palette.heading, fontSize: "20px", margin: "0 0 6px" }}>
         Good morning, {userName ?? "trader"}
       </Heading>
@@ -116,39 +127,61 @@ export function DailyEmail({ userName, signals, holdings }: DailyProps) {
         Your portfolio pulse and today&apos;s high-conviction swing setups.
       </Text>
 
-      <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 10px" }}>
-        Portfolio Snapshot
-      </Text>
-      <Section style={{ border: `1px solid ${palette.cardBorder}`, borderRadius: "10px", padding: "4px 14px", marginBottom: "28px" }}>
-        {holdings.map((h, i) => (
-          <Row
-            key={h.asset}
-            style={i < holdings.length - 1 ? { borderBottom: `1px solid ${palette.divider}` } : undefined}
-          >
-            <Column style={{ padding: "10px 0" }}>
-              <Text style={{ color: palette.heading, fontSize: "14px", fontWeight: 600, margin: 0 }}>{h.asset}</Text>
-            </Column>
-            <Column align="right" style={{ padding: "10px 0" }}>
-              <Text style={{ color: palette.muted, fontSize: "13px", margin: 0 }}>{h.amount.toFixed(4)}</Text>
-            </Column>
-            <Column align="right" style={{ padding: "10px 0" }}>
-              <Text style={{ color: palette.heading, fontSize: "14px", fontWeight: 600, margin: 0 }}>{formatCurrency(h.value)}</Text>
-            </Column>
-          </Row>
-        ))}
-        <Row>
-          <Column style={{ padding: "10px 0", borderTop: `1px solid ${palette.cardBorder}` }}>
-            <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, margin: 0, textTransform: "uppercase" }}>Total</Text>
-          </Column>
-          <Column />
-          <Column align="right" style={{ padding: "10px 0", borderTop: `1px solid ${palette.cardBorder}` }}>
-            <Text style={{ color: palette.brand, fontSize: "15px", fontWeight: 700, margin: 0 }}>{formatCurrency(value)}</Text>
-          </Column>
-        </Row>
-      </Section>
+      <Row style={{ marginBottom: "22px" }}>
+        <Column>
+          <Text style={{ color: palette.muted, fontSize: "11px", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Total portfolio value
+          </Text>
+          <Text style={{ color: palette.heading, fontSize: "20px", fontWeight: 700, margin: 0 }}>
+            {formatCurrency(totalUsd)}
+          </Text>
+        </Column>
+      </Row>
+
+      {/* Separate table per market -- each shown in its own native currency
+          (NGN for NGX, USD for Binance/Trading 212) instead of one flat list
+          of every holding across every broker in USD. */}
+      {nonEmptyGroups.map((group) => (
+        <React.Fragment key={group.label}>
+          <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 10px" }}>
+            {group.label}
+          </Text>
+          <Section style={{ border: `1px solid ${palette.cardBorder}`, borderRadius: "10px", padding: "4px 14px", marginBottom: "20px" }}>
+            {group.rows.map((h, i) => (
+              <Row
+                key={h.asset}
+                style={i < group.rows.length - 1 ? { borderBottom: `1px solid ${palette.divider}` } : undefined}
+              >
+                <Column style={{ padding: "10px 0" }}>
+                  <Text style={{ color: palette.heading, fontSize: "14px", fontWeight: 600, margin: 0 }}>{h.asset}</Text>
+                </Column>
+                <Column align="right" style={{ padding: "10px 0" }}>
+                  <Text style={{ color: palette.muted, fontSize: "13px", margin: 0 }}>{h.amount.toFixed(4)}</Text>
+                </Column>
+                <Column align="right" style={{ padding: "10px 0" }}>
+                  <Text style={{ color: palette.heading, fontSize: "14px", fontWeight: 600, margin: 0 }}>
+                    {formatCurrency(h.valueUsd * group.fxRate, group.displayCurrency)}
+                  </Text>
+                </Column>
+              </Row>
+            ))}
+            <Row>
+              <Column style={{ padding: "10px 0", borderTop: `1px solid ${palette.cardBorder}` }}>
+                <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, margin: 0, textTransform: "uppercase" }}>Subtotal</Text>
+              </Column>
+              <Column />
+              <Column align="right" style={{ padding: "10px 0", borderTop: `1px solid ${palette.cardBorder}` }}>
+                <Text style={{ color: palette.brand, fontSize: "15px", fontWeight: 700, margin: 0 }}>
+                  {formatCurrency(group.rows.reduce((s, r) => s + r.valueUsd, 0) * group.fxRate, group.displayCurrency)}
+                </Text>
+              </Column>
+            </Row>
+          </Section>
+        </React.Fragment>
+      ))}
 
       <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 10px" }}>
-        Swing Signals · 24-72h
+        Swing Signals · Binance · 24-72h
       </Text>
       {signals.length === 0 ? (
         <Section style={{ border: `1px dashed ${palette.cardBorder}`, borderRadius: "10px", padding: "18px" }}>
@@ -216,7 +249,7 @@ export async function sendDailyEmail(props: {
   to: string;
   userName?: string;
   signals: SwingSignal[];
-  holdings: { asset: string; amount: number; value: number }[];
+  holdingGroups: HoldingGroup[];
   from?: string;
   apiKey?: string;
 }) {

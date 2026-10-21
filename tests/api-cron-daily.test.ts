@@ -20,10 +20,14 @@ vi.mock("../lib/prisma", () => ({
 }));
 
 const binanceMock = vi.hoisted(() => ({
-  getMarketTickers: vi.fn(),
-  getSwingCandidateMarkets: vi.fn()
+  getMarketTickers: vi.fn()
 }));
 vi.mock("../lib/binance", () => binanceMock);
+
+const signalPoolsMock = vi.hoisted(() => ({
+  getSwingPools: vi.fn()
+}));
+vi.mock("../lib/signal-pools", () => signalPoolsMock);
 
 const aiMock = vi.hoisted(() => ({
   generateSwingSignals: vi.fn()
@@ -50,7 +54,7 @@ describe("POST /api/cron/daily", () => {
     prismaMock.signal.createMany.mockReset();
   prismaMock.emailLog.create.mockReset();
   binanceMock.getMarketTickers.mockReset();
-  binanceMock.getSwingCandidateMarkets.mockReset();
+  signalPoolsMock.getSwingPools.mockReset();
   aiMock.generateSwingSignals.mockReset();
   emailMock.sendDailyEmail.mockReset();
   process.env.RESEND_API_KEY = "test-resend";
@@ -72,8 +76,8 @@ describe("POST /api/cron/daily", () => {
       apiSetting: { dailyEmailTo: "demo@example.com" },
       holdings: [{ asset: "HBAR", amount: 100 }]
     });
-    binanceMock.getSwingCandidateMarkets.mockResolvedValue([
-      { symbol: "HBAR", price: 0.1, change24h: 0, volume: 0, quoteVolume: 0, high: 0.1, low: 0.1 }
+    signalPoolsMock.getSwingPools.mockResolvedValue([
+      { symbol: "HBAR", price: 0.1, change24h: 0, volume: 0, quoteVolume: 0, high: 0.1, low: 0.1, pool: "momentum" }
     ]);
     // The route also prices every holding (not just swing-signal candidates)
     // via getPricesForHoldings, which calls this for the crypto side.
@@ -81,7 +85,7 @@ describe("POST /api/cron/daily", () => {
       { symbol: "HBAR", price: 0.1, change24h: 0, volume: 0, quoteVolume: 0, high: 0.1, low: 0.1 }
     ]);
     aiMock.generateSwingSignals.mockResolvedValue([
-      { symbol: "HBAR", thesis: "test", confidence: 80, source: "openai" }
+      { symbol: "HBAR", thesis: "test", confidence: 80, source: "openai", pool: "momentum" }
     ]);
     emailMock.sendDailyEmail.mockResolvedValue({ sent: true });
 

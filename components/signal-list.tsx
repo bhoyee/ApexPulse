@@ -14,8 +14,20 @@ interface Signal {
   entryPrice?: number;
   stopLoss?: number;
   takeProfit?: number;
+  pool?: string | null;
   createdAt: string;
 }
+
+const POOL_LABEL: Record<string, string> = {
+  MOMENTUM: "Momentum",
+  REVERSAL: "Reversal",
+  RECENT_LISTING: "Recent Listing"
+};
+const POOL_CLASS: Record<string, string> = {
+  MOMENTUM: "bg-emerald-500/15 text-emerald-400",
+  REVERSAL: "bg-amber-500/15 text-amber-400",
+  RECENT_LISTING: "bg-sky-500/15 text-sky-400"
+};
 
 async function fetchSignals(refresh = false): Promise<Signal[]> {
   const res = await fetch(`/api/signals${refresh ? "?refresh=true" : ""}`);
@@ -39,7 +51,7 @@ export function SignalList({ initial }: { initial: Signal[] }) {
   });
 
   const refresh = async () => {
-    toast("Generating fresh swings with DeepSeek (OpenAI fallback)");
+    toast("Re-screening Momentum, Reversal, and Recent Listing pools with DeepSeek (OpenAI fallback)...");
     const res = await fetch(`/api/signals?refresh=true`);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -55,7 +67,9 @@ export function SignalList({ initial }: { initial: Signal[] }) {
         <div>
           <p className="text-sm font-semibold text-muted-foreground">AI Swing Signals</p>
           <p className="text-xs text-muted-foreground">
-            Only ideas that clear an 80%+ conviction bar on real due diligence (trend, liquidity, upside room, risk/reward) are shown. DeepSeek primary, OpenAI fallback.
+            Only ideas that clear an 80%+ conviction bar are shown, screened across three pools --
+            Momentum (trending up), Reversal (dropped hard but stabilizing), and Recent Listing
+            (listed in the last 30 days). DeepSeek primary, OpenAI fallback.
           </p>
         </div>
         <Button variant="outline" size="sm" disabled={isFetching} onClick={refresh}>
@@ -75,6 +89,11 @@ export function SignalList({ initial }: { initial: Signal[] }) {
                   <span className="rounded-md bg-primary/20 px-2 py-1 text-xs font-semibold text-primary">
                     {s.symbol}
                   </span>
+                  {s.pool && (
+                    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${POOL_CLASS[s.pool] ?? "bg-white/10 text-muted-foreground"}`}>
+                      {POOL_LABEL[s.pool] ?? s.pool}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground uppercase">{s.source}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">

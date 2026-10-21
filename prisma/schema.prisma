@@ -169,6 +169,9 @@ model Signal {
   stopLoss    Float?
   takeProfit  Float?
   source      SignalSource @default(GROK)
+  // Which thesis this pick came from -- nullable since signals generated
+  // before this field existed were never tagged.
+  pool        SignalPool?
   createdAt   DateTime     @default(now())
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -220,4 +223,10 @@ enum SignalSource {
   OPENAI
   DEEPSEEK
   FALLBACK
+}
+
+enum SignalPool {
+  MOMENTUM
+  REVERSAL
+  RECENT_LISTING
 }

@@ -203,7 +203,14 @@ export function DailyEmail({ userName, signals, holdingGroups }: DailyProps) {
           >
             <Row>
               <Column>
-                <Text style={{ color: palette.heading, fontSize: "16px", fontWeight: 700, margin: 0 }}>{s.symbol}</Text>
+                <Text style={{ color: palette.heading, fontSize: "16px", fontWeight: 700, margin: 0 }}>
+                  {s.symbol}
+                  {s.pool && (
+                    <span style={{ color: palette.muted, fontSize: "11px", fontWeight: 600, marginLeft: "8px", textTransform: "uppercase" }}>
+                      {s.pool.replace("_", " ")}
+                    </span>
+                  )}
+                </Text>
               </Column>
               <Column align="right">
                 <Text

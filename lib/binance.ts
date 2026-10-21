@@ -207,12 +207,12 @@ export interface MarketCandidate {
 }
 
 // Pulls Binance's full spot ticker list and narrows it to real, liquid,
-// currently-tradable USDT pairs sorted by 24h quote volume. This is the
-// "real due diligence" universe the AI is allowed to pick swing ideas
-// from -- it excludes stablecoins/fiat pairs and leveraged tokens (3x/UP/
-// DOWN products), and every entry is backed by live price/volume data
-// rather than the model guessing at obscure tickers from memory.
-export async function getTopUsdtMarkets(limit = 30): Promise<MarketCandidate[]> {
+// currently-tradable USDT pairs -- excludes stablecoins/fiat pairs and
+// leveraged tokens (3x/UP/DOWN products) so every entry is a real,
+// backed-by-live-data candidate rather than the model guessing at obscure
+// tickers from memory. Shared by every candidate pool (momentum, reversal,
+// recently-listed) so each only differs in how it filters/sorts this list.
+async function fetchLiquidUsdtTickers(): Promise<MarketCandidate[]> {
   let res: Response;
   try {
     res = await fetch(`${BINANCE_API}/api/v3/ticker/24hr`, { signal: AbortSignal.timeout(10000) });
@@ -250,31 +250,37 @@ export async function getTopUsdtMarkets(limit = 30): Promise<MarketCandidate[]> 
         low: Number(t.lowPrice)
       })
     )
-    .filter((t) => Number.isFinite(t.price) && t.price > 0 && t.quoteVolume > 0)
-    .sort((a, b) => b.quoteVolume - a.quoteVolume)
+    .filter((t) => Number.isFinite(t.price) && t.price > 0 && t.quoteVolume > 0);
+}
+
+// Momentum pool: biggest 24h gainers by liquidity.
+export async function getTopUsdtMarkets(limit = 30): Promise<MarketCandidate[]> {
+  const liquid = await fetchLiquidUsdtTickers();
+  return liquid.sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, limit);
+}
+
+// Reversal pool: biggest 24h decliners that still look liquid enough to
+// trade AND show some evidence of stabilizing -- price already bounced a
+// couple percent off its 24h low, not still sitting at (or making) new
+// lows. "Near the low" alone just means "still falling"; requiring a bounce
+// is a cheap, real signal computable from the same ticker data rather than
+// a guess, without needing a separate klines/candle fetch.
+export async function getTopLoserMarkets(limit = 30): Promise<MarketCandidate[]> {
+  const liquid = await fetchLiquidUsdtTickers();
+  return liquid
+    .filter((t) => t.change24h < 0 && t.low > 0 && t.price > t.low * 1.015)
+    .sort((a, b) => a.change24h - b.change24h)
     .slice(0, limit);
 }
 
-// Broad, liquid market universe (for AI swing signals) plus whatever the
-// user actually holds, so existing positions are always considered even
-// if they fall outside the top-volume cut.
-export async function getSwingCandidateMarkets(
-  holdingSymbols: string[] = [],
-  limit = 30
-): Promise<MarketCandidate[]> {
-  const [top, holdings] = await Promise.all([
-    getTopUsdtMarkets(limit),
-    holdingSymbols.length ? getMarketTickers(holdingSymbols) : Promise.resolve([])
-  ]);
-
-  const bySymbol = new Map(top.map((m) => [m.symbol, m]));
-  holdings.forEach((m) => {
-    if (!bySymbol.has(m.symbol)) {
-      bySymbol.set(m.symbol, { ...m, quoteVolume: m.price * m.volume });
-    }
-  });
-
-  return Array.from(bySymbol.values());
+// Pulls current stats for a specific set of symbols rather than ranking the
+// whole market -- used for pools defined by membership (recently-listed,
+// or a user's existing holdings) instead of by a volume/change24h cutoff.
+export async function getMarketsForSymbols(symbols: string[]): Promise<MarketCandidate[]> {
+  if (!symbols.length) return [];
+  const wanted = new Set(symbols.map((s) => s.toUpperCase()));
+  const liquid = await fetchLiquidUsdtTickers();
+  return liquid.filter((t) => wanted.has(t.symbol));
 }
 
 const COINGECKO_IDS: Record<string, string> = {

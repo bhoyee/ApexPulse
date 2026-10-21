@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
-import { getSwingCandidateMarkets } from "../../../lib/binance";
+import { getSwingPools } from "../../../lib/signal-pools";
 import { generateSwingSignals } from "../../../lib/ai";
 
 export async function GET(req: Request) {
@@ -33,8 +33,8 @@ export async function GET(req: Request) {
     where: { userId: session.user.id },
     select: { asset: true }
   });
-  const markets = await getSwingCandidateMarkets(holdings.map((h) => h.asset.toUpperCase()));
-  const signals = await generateSwingSignals(markets, {
+  const swingPools = await getSwingPools(holdings.map((h) => h.asset.toUpperCase()));
+  const signals = await generateSwingSignals(swingPools, {
     deepseekKey: settings?.deepseekApiKey ?? undefined,
     openaiKey: settings?.openaiApiKey ?? undefined
   });
@@ -49,7 +49,8 @@ export async function GET(req: Request) {
       entryPrice: s.entryPrice ?? null,
       source: s.source.toUpperCase() as any,
       stopLoss: s.stopLoss,
-      takeProfit: s.takeProfit
+      takeProfit: s.takeProfit,
+      pool: s.pool ? (s.pool.toUpperCase() as any) : null
     }))
   });
 

@@ -1,14 +1,6 @@
-type ModelChoice = "openai" | "deepseek" | "fallback";
+import type { SignalPool, TaggedMarketCandidate } from "./signal-pools";
 
-interface MarketSnapshot {
-  symbol: string;
-  price: number;
-  change24h?: number;
-  volume?: number;
-  quoteVolume?: number;
-  high?: number;
-  low?: number;
-}
+type ModelChoice = "openai" | "deepseek" | "fallback";
 
 const MIN_CONFIDENCE = 80;
 
@@ -20,6 +12,12 @@ export interface SwingSignal {
   stopLoss?: number;
   takeProfit?: number;
   source: ModelChoice;
+  /** Which thesis this pick came from -- shown on the signal so the reader
+   * knows whether they're trading a trend continuation, a bounce, or a
+   * young/volatile listing, rather than one generic label hiding the case.
+   * Optional on the raw parsed shape; generateSwingSignals always attaches
+   * it (looked up from the candidate list, not trusted from the model). */
+  pool?: SignalPool;
 }
 
 export async function callOpenAI(prompt: string, key?: string) {
@@ -113,33 +111,53 @@ export function parseSignals(raw: string, source: ModelChoice): SwingSignal[] {
   }
 }
 
+const POOL_LABEL: Record<SignalPool, string> = {
+  momentum: "MOMENTUM (already trending up)",
+  reversal: "REVERSAL (dropped hard, showing stabilization)",
+  recent_listing: "RECENT LISTING (listed on Binance in the last 30 days)"
+};
+
 export async function generateSwingSignals(
-  snapshot: MarketSnapshot[],
+  candidates: TaggedMarketCandidate[],
   opts?: { openaiKey?: string; deepseekKey?: string }
 ): Promise<SwingSignal[]> {
-  const candidates = snapshot.slice(0, 40);
-  const validSymbols = new Set(candidates.map((c) => c.symbol.toUpperCase()));
+  const trimmed = candidates.slice(0, 60);
+  const poolBySymbol = new Map(trimmed.map((c) => [c.symbol.toUpperCase(), c.pool]));
+  const bySymbol = new Set(trimmed.map((c) => c.symbol.toUpperCase()));
 
-  const prompt = `You are screening real, currently-liquid Binance USDT pairs for swing trades over the next 24-72h. This snapshot is the ONLY universe you may pick from -- never invent, guess, or reference a symbol that is not in this exact list. Every entry already has real live price/volume data; do not assume anything about a coin beyond what's given.
+  const byPool = (pool: SignalPool) => trimmed.filter((c) => c.pool === pool);
 
-Market snapshot (symbol, price USD, change24h %, 24h volume, 24h high, 24h low):
-${JSON.stringify(candidates)}
+  const prompt = `You are screening real, currently-liquid Binance USDT pairs for swing trades over the next 24-72h. The candidates below are the ONLY universe you may pick from -- never invent, guess, or reference a symbol that is not in this exact list. Every entry already has real live price/volume data; do not assume anything about a coin beyond what's given. Each candidate is tagged with which pool it came from -- apply ONLY that pool's checklist to it, since each pool is a different thesis with different risks.
 
-For each candidate you consider, run this due-diligence checklist using ONLY the data above:
-1. Trend confirmation: is change24h clearly positive (active momentum), or is price basing near its 24h low after a selloff (mean-reversion setup)? State which case applies.
-2. Liquidity: does the 24h volume support entering/exiting a swing position without excessive slippage?
-3. Room to run: is price meaningfully below its 24h high (upside room), rather than already stretched at the top of its range?
-4. Risk/reward: can you set a stopLoss and takeProfit (both as % from entry) where the reward is at least 1.5x the risk?
+${(["momentum", "reversal", "recent_listing"] as SignalPool[])
+  .map((pool) => {
+    const list = byPool(pool);
+    if (!list.length) return null;
+    return `${POOL_LABEL[pool]} candidates (symbol, price USD, change24h %, 24h volume, 24h high, 24h low):\n${JSON.stringify(list.map(({ pool: _p, ...c }) => c))}`;
+  })
+  .filter(Boolean)
+  .join("\n\n")}
 
-Score confidence 0-100 based strictly on how many of these 4 checks are clearly satisfied by the data -- not vibes, not general knowledge about the coin. Only include an idea in your response if confidence >= ${MIN_CONFIDENCE} AND at least 3 of the 4 checks pass. If nothing in the snapshot clears that bar, return an empty array. Do not lower your standard or invent reasons just to return more ideas -- an empty array is a valid, honest answer.
+Due-diligence checklist by pool -- use ONLY the data given, run the matching checklist for that candidate's pool:
+
+MOMENTUM: (1) is change24h clearly positive with real follow-through, not a single volume spike? (2) does 24h volume support entering/exiting without excessive slippage? (3) is price meaningfully below its 24h high (room to run), not already stretched at the top? (4) risk/reward >= 1.5x.
+
+REVERSAL: (1) has price already bounced a couple percent off its 24h low (real stabilization), not still sitting at/making new lows -- "near the low" alone is NOT enough, it must show an actual bounce; (2) does 24h volume support a real entry/exit despite the selloff? (3) is the decline large enough that a recovery toward the 24h high gives real reward? (4) risk/reward >= 1.5x with the stop placed below the recent low, not so tight that normal noise triggers it.
+
+RECENT_LISTING: (1) does 24h volume look like genuine trading, not a thin/manipulated pair? (2) what does change24h/high/low actually show -- uptrend, pullback, or chop? State which. (3) risk/reward >= 1.5x, with wider stop/target bands than an established coin since new listings are noisier. (4) confidence must reflect the extra uncertainty of having no real trading history yet -- do not score a recent listing as confidently as an established coin just because today's numbers look good.
+
+Score confidence 0-100 based strictly on how many of that pool's 4 checks are clearly satisfied -- not vibes, not general knowledge about the coin. Only include an idea if confidence >= ${MIN_CONFIDENCE} AND at least 3 of its pool's 4 checks pass. If nothing clears that bar, return an empty array. Do not lower your standard or invent reasons just to return more ideas -- an empty array is a valid, honest answer.
 
 Return 0-5 ideas as a pure JSON array (no prose, no markdown fences). Each object:
-{ "symbol": string (must exactly match a symbol from the snapshot), "thesis": string (2-3 sentences citing the specific change24h/volume/range numbers that justify the call), "confidence": number (${MIN_CONFIDENCE}-100 only), "entryPrice": number, "stopLoss": number (pct), "takeProfit": number (pct) }`;
+{ "symbol": string (must exactly match a candidate symbol), "thesis": string (2-3 sentences citing the specific numbers that justify the call, and naming which pool/thesis applies), "confidence": number (${MIN_CONFIDENCE}-100 only), "entryPrice": number, "stopLoss": number (pct), "takeProfit": number (pct) }`;
 
-  const vet = (signals: SwingSignal[]) =>
-    signals.filter(
-      (s) => s.confidence >= MIN_CONFIDENCE && validSymbols.has(s.symbol.toUpperCase())
-    );
+  const vet = (signals: SwingSignal[]): SwingSignal[] =>
+    signals
+      .filter((s) => s.confidence >= MIN_CONFIDENCE && bySymbol.has(s.symbol.toUpperCase()))
+      // `pool` is attached here from the candidate list, not trusted from
+      // the model's own output, since a model echoing a label back isn't
+      // the same guarantee as us knowing which list it actually came from.
+      .map((s) => ({ ...s, pool: poolBySymbol.get(s.symbol.toUpperCase()) }));
 
   try {
     const ds = await callDeepSeek(prompt, opts?.deepseekKey);

@@ -9,10 +9,10 @@ import { generateSwingSignals, generateListingSignal, MIN_LISTING_CONFIDENCE } f
 import { sendDailyEmail, sendListingAlertEmail, type HoldingGroup } from "../lib/email";
 import { getNewUsdtListings } from "../lib/binance-listings";
 import { getPricesForHoldings } from "../lib/pricing";
+import { getSwingPools } from "../lib/signal-pools";
 import { getUsdRate } from "../lib/fx";
 import {
   getMarketTickers,
-  getSwingCandidateMarkets,
   getBinanceBalances,
   getBinanceTrades
 } from "../lib/binance";
@@ -133,11 +133,11 @@ async function runDaily() {
     // Sync trades per symbol (USDT pairs)
     await syncTradesForUser(user, symbols);
 
-    const markets = await getSwingCandidateMarkets(symbols);
+    const swingPools = await getSwingPools(symbols);
 
-    // Swing-signal candidates (`markets`) are Binance-only by design, but the
-    // email's portfolio snapshot covers every broker the user holds --
-    // pricing it off `markets` alone left every NGX/Trading212 row at $0.
+    // Swing-signal candidates (`swingPools`) are Binance-only by design, but
+    // the email's portfolio snapshot covers every broker the user holds --
+    // pricing it off that alone left every NGX/Trading212 row at $0.
     // getPricesForHoldings resolves each holding through the right source
     // (Binance, Trading212's stored snapshot, or the NGX fallback chain).
     const allMarkets = await getPricesForHoldings(refreshedHoldings, symbols, {
@@ -189,7 +189,7 @@ async function runDaily() {
       }
     ];
 
-    const signals = await generateSwingSignals(markets, {
+    const signals = await generateSwingSignals(swingPools, {
       openaiKey: user.apiSetting?.openaiApiKey ?? undefined,
       deepseekKey: user.apiSetting?.deepseekApiKey ?? undefined
     });
@@ -205,7 +205,8 @@ async function runDaily() {
         entryPrice: s.entryPrice ?? null,
         source: s.source.toUpperCase() as any,
         stopLoss: s.stopLoss,
-        takeProfit: s.takeProfit
+        takeProfit: s.takeProfit,
+        pool: s.pool ? (s.pool.toUpperCase() as any) : null
       }))
     });
 

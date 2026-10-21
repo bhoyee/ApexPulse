@@ -1,4 +1,5 @@
 import type { SignalPool, TaggedMarketCandidate } from "./signal-pools";
+import type { DividendCandidate } from "./us-dividend-stocks";
 
 type ModelChoice = "openai" | "deepseek" | "fallback";
 
@@ -249,4 +250,81 @@ Return pure JSON (no prose, no markdown fences): { "confidence": number (0-100),
   }
 
   return null;
+}
+
+export interface DividendPick {
+  symbol: string;
+  thesis: string;
+  confidence: number;
+  dividendYieldPct: number;
+  price: number;
+  source: ModelChoice;
+}
+
+const MIN_DIVIDEND_CONFIDENCE = 70;
+
+// Unlike swing signals, this is a value/income pick, not a timing call --
+// the checklist is yield quality, room to grow, and affordability, not
+// momentum or a 24-72h window.
+export async function generateDividendPicks(
+  candidates: DividendCandidate[],
+  opts?: { openaiKey?: string; deepseekKey?: string }
+): Promise<DividendPick[]> {
+  const bySymbol = new Set(candidates.map((c) => c.symbol.toUpperCase()));
+  if (!candidates.length) return [];
+
+  const prompt = `You are screening US dividend-paying stocks for a value/income pick -- this is NOT a short-term trade, it's "which of these is a solid stock to hold for dividends and steady growth." The candidates below are the ONLY universe you may pick from -- never invent or reference a symbol not in this list.
+
+Candidates (symbol, price USD, trailing 12-month dividend yield %, 52-week high, 52-week low):
+${JSON.stringify(candidates)}
+
+For each candidate, weigh: (1) is the trailing dividend yield genuinely attractive, not just non-zero? (2) is there real room to grow -- price not already stretched at its 52-week high? (3) is the per-share price affordable (lower is better, all else equal -- this screen explicitly favors accessible share prices over expensive ones)? You may use general knowledge of whether this is a stable, established company to judge sustainability of the dividend, but do not invent any number not given above.
+
+Pick exactly the best 2 candidates. Score confidence 0-100 based on how well they satisfy the 3 checks above -- an empty or shorter list is a valid, honest answer if fewer than 2 look genuinely good; do not pad with a weak pick just to reach 2.
+
+Return a pure JSON array (no prose, no markdown fences) of up to 2 objects:
+{ "symbol": string (must exactly match a candidate), "thesis": string (2-3 sentences citing the actual yield/price/range numbers), "confidence": number (0-100), "dividendYieldPct": number (echo the candidate's given yield), "price": number (echo the candidate's given price) }`;
+
+  const parseMany = (raw: string, source: ModelChoice): DividendPick[] => {
+    try {
+      const cleaned = raw.replace(/```json/gi, "```").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((item) => ({
+          symbol: String(item.symbol ?? "").toUpperCase().trim(),
+          thesis: item.thesis || "Algorithmic edge.",
+          confidence: Number(item.confidence ?? 0),
+          dividendYieldPct: Number(item.dividendYieldPct ?? 0),
+          price: Number(item.price ?? 0),
+          source
+        }))
+        .filter((p) => p.confidence >= MIN_DIVIDEND_CONFIDENCE && bySymbol.has(p.symbol));
+    } catch (error) {
+      console.warn("Dividend pick parse failed", error);
+      return [];
+    }
+  };
+
+  try {
+    const ds = await callDeepSeek(prompt, opts?.deepseekKey);
+    if (ds) {
+      const picks = parseMany(ds, "deepseek");
+      if (picks.length) return picks.slice(0, 2);
+    }
+  } catch (error) {
+    console.error("DeepSeek error (dividend picks), falling back to OpenAI", error);
+  }
+
+  try {
+    const openai = await callOpenAI(prompt, opts?.openaiKey);
+    if (openai) {
+      const picks = parseMany(openai, "openai");
+      if (picks.length) return picks.slice(0, 2);
+    }
+  } catch (error) {
+    console.error("OpenAI error (dividend picks)", error);
+  }
+
+  return [];
 }

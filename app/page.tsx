@@ -9,6 +9,7 @@ import { AddPositionForm } from "../components/add-position-form";
 import { MarketRadar } from "../components/market-radar";
 import { getPricesForHoldings } from "../lib/pricing";
 import { TradesTable } from "../components/trades-table";
+import { DividendPicks } from "../components/dividend-picks";
 import { DashboardTabs } from "../components/dashboard-tabs";
 import Link from "next/link";
 
@@ -89,6 +90,18 @@ export default async function DashboardPage() {
     price: Number(t.price),
     fee: t.fee ? Number(t.fee) : undefined,
     executedAt: t.executedAt.toISOString()
+  }));
+
+  const dividendPicks = await prisma.dividendPick.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    take: 10
+  });
+  const dividendPicksSafe = dividendPicks.map((p) => ({
+    ...p,
+    price: Number(p.price),
+    dividendYieldPct: Number(p.dividendYieldPct),
+    createdAt: p.createdAt.toISOString()
   }));
 
   // Split into the three broker/market groupings the dashboard shows as
@@ -179,6 +192,7 @@ export default async function DashboardPage() {
         symbols={trading212Symbols}
         subtitle="Auto-synced from Trading 212; shows each fill and live P/L."
       />
+      <DividendPicks initial={dividendPicksSafe as any} />
     </>
   );
 

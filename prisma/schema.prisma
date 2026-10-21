@@ -23,6 +23,7 @@ model User {
   transactions   Transaction[]
   apiSetting     ApiSetting?
   signals        Signal[]
+  dividendPicks  DividendPick[]
   syncJobs       SyncJob[]
   emails         EmailLog[]
 }
@@ -174,6 +175,23 @@ model Signal {
   pool        SignalPool?
   createdAt   DateTime     @default(now())
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A value/income pick for Trading 212 -- distinct from Signal (a swing
+// timing call) since the fields and horizon are different: dividend yield
+// and 52-week range instead of stop-loss/take-profit, no entry-timing
+// claim at all.
+model DividendPick {
+  id               String       @id @default(cuid())
+  userId           String
+  symbol           String
+  thesis           String
+  confidence       Int
+  price            Float
+  dividendYieldPct Float
+  source           SignalSource @default(DEEPSEEK)
+  createdAt        DateTime     @default(now())
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // One row per Binance "new listing" announcement we've already processed --

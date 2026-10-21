@@ -11,7 +11,7 @@ export interface StockQuote {
   low: number;
 }
 
-const YAHOO_UA =
+export const YAHOO_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
 // Free, no-key public quote endpoint. Best-effort: a symbol that fails to

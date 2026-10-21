@@ -7,7 +7,9 @@ import {
   Container,
   Head,
   Heading,
+  Hr,
   Html,
+  Link,
   Preview,
   Row,
   Section,
@@ -25,6 +27,77 @@ function getResend(apiKey?: string) {
   return new Resend(apiKey);
 }
 
+// Shared visual language across both email templates -- previously each
+// template inlined its own ad hoc colors/spacing, which is how a plain list
+// of <Row>s with no card structure, badges, or footer ended up looking
+// unfinished rather than like a real product email.
+const palette = {
+  bg: "#0a0e17",
+  card: "#11172a",
+  cardBorder: "#1f2a44",
+  divider: "#1c2438",
+  heading: "#f1f5f9",
+  body: "#cbd5e1",
+  muted: "#7c8aa8",
+  brand: "#22d3ee",
+  positive: "#34d399",
+  negative: "#f87171"
+};
+
+function confidenceColor(confidence: number) {
+  if (confidence >= 88) return palette.positive;
+  if (confidence >= 80) return palette.brand;
+  return palette.muted;
+}
+
+function EmailShell({ preview, children }: { preview: string; children: React.ReactNode }) {
+  const settingsUrl = process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/settings` : null;
+  return (
+    <Html>
+      <Head />
+      <Preview>{preview}</Preview>
+      <Body style={{ fontFamily: "-apple-system, Segoe UI, Inter, Arial, sans-serif", background: palette.bg, margin: 0, padding: "24px 0" }}>
+        <Container style={{ maxWidth: "560px", margin: "0 auto" }}>
+          <Section style={{ padding: "0 8px 20px" }}>
+            <Text style={{ color: palette.brand, fontSize: "13px", fontWeight: 700, letterSpacing: "0.12em", margin: 0, textTransform: "uppercase" }}>
+              ApexPulse
+            </Text>
+          </Section>
+          <Section style={{ background: palette.card, border: `1px solid ${palette.cardBorder}`, borderRadius: "16px", padding: "28px" }}>
+            {children}
+          </Section>
+          <Section style={{ padding: "20px 8px 0" }}>
+            <Hr style={{ borderColor: palette.divider, margin: "0 0 16px" }} />
+            <Text style={{ color: palette.muted, fontSize: "12px", margin: "0 0 4px" }}>
+              Self-hosted · AI-generated, not financial advice · Sent {new Date().toUTCString()}
+            </Text>
+            {settingsUrl && (
+              <Text style={{ color: palette.muted, fontSize: "12px", margin: 0 }}>
+                <Link href={settingsUrl} style={{ color: palette.muted, textDecoration: "underline" }}>
+                  Manage alert preferences
+                </Link>
+              </Text>
+            )}
+          </Section>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+function StatBlock({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <Column align="left">
+      <Text style={{ color: palette.muted, fontSize: "11px", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+        {label}
+      </Text>
+      <Text style={{ color: valueColor ?? palette.heading, fontSize: "14px", fontWeight: 600, margin: 0 }}>
+        {value}
+      </Text>
+    </Column>
+  );
+}
+
 interface DailyProps {
   userName?: string;
   signals: SwingSignal[];
@@ -35,54 +108,107 @@ export function DailyEmail({ userName, signals, holdings }: DailyProps) {
   const value = holdings.reduce((t, h) => t + h.value, 0);
 
   return (
-    <Html>
-      <Head />
-      <Preview>ApexPulse daily swings and portfolio health</Preview>
-      <Body style={{ fontFamily: "Inter, Arial, sans-serif", background: "#0b1223", color: "#e2e8f0" }}>
-        <Container style={{ padding: "32px", background: "#0f172a", borderRadius: "18px" }}>
-          <Heading style={{ color: "#22d3ee", marginBottom: "12px" }}>
-            ApexPulse Daily Signals
-          </Heading>
-          <Text style={{ color: "#cbd5e1", marginBottom: "24px" }}>
-            Hi {userName ?? "trader"}, here is your swing plan and a quick pulse on the stack.
+    <EmailShell preview={`${signals.length} swing setup${signals.length === 1 ? "" : "s"} today, portfolio ${formatCurrency(value)}`}>
+      <Heading style={{ color: palette.heading, fontSize: "20px", margin: "0 0 6px" }}>
+        Good morning, {userName ?? "trader"}
+      </Heading>
+      <Text style={{ color: palette.body, fontSize: "14px", margin: "0 0 24px" }}>
+        Your portfolio pulse and today&apos;s high-conviction swing setups.
+      </Text>
+
+      <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 10px" }}>
+        Portfolio Snapshot
+      </Text>
+      <Section style={{ border: `1px solid ${palette.cardBorder}`, borderRadius: "10px", padding: "4px 14px", marginBottom: "28px" }}>
+        {holdings.map((h, i) => (
+          <Row
+            key={h.asset}
+            style={i < holdings.length - 1 ? { borderBottom: `1px solid ${palette.divider}` } : undefined}
+          >
+            <Column style={{ padding: "10px 0" }}>
+              <Text style={{ color: palette.heading, fontSize: "14px", fontWeight: 600, margin: 0 }}>{h.asset}</Text>
+            </Column>
+            <Column align="right" style={{ padding: "10px 0" }}>
+              <Text style={{ color: palette.muted, fontSize: "13px", margin: 0 }}>{h.amount.toFixed(4)}</Text>
+            </Column>
+            <Column align="right" style={{ padding: "10px 0" }}>
+              <Text style={{ color: palette.heading, fontSize: "14px", fontWeight: 600, margin: 0 }}>{formatCurrency(h.value)}</Text>
+            </Column>
+          </Row>
+        ))}
+        <Row>
+          <Column style={{ padding: "10px 0", borderTop: `1px solid ${palette.cardBorder}` }}>
+            <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, margin: 0, textTransform: "uppercase" }}>Total</Text>
+          </Column>
+          <Column />
+          <Column align="right" style={{ padding: "10px 0", borderTop: `1px solid ${palette.cardBorder}` }}>
+            <Text style={{ color: palette.brand, fontSize: "15px", fontWeight: 700, margin: 0 }}>{formatCurrency(value)}</Text>
+          </Column>
+        </Row>
+      </Section>
+
+      <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 10px" }}>
+        Swing Signals · 24-72h
+      </Text>
+      {signals.length === 0 ? (
+        <Section style={{ border: `1px dashed ${palette.cardBorder}`, borderRadius: "10px", padding: "18px" }}>
+          <Text style={{ color: palette.body, fontSize: "13px", margin: 0 }}>
+            No setup cleared our confidence bar today. That&apos;s intentional -- we&apos;d rather send nothing
+            than a weak pick.
           </Text>
-          <Section style={{ marginBottom: "24px" }}>
-            <Heading as="h3" style={{ color: "#e2e8f0", fontSize: "18px" }}>
-              Portfolio Snapshot — {formatCurrency(value)}
-            </Heading>
-            {holdings.map((h) => (
-              <Row key={h.asset} style={{ color: "#cbd5e1", paddingBottom: "6px" }}>
-                <Column>{h.asset}</Column>
-                <Column align="right">{h.amount.toFixed(4)}</Column>
-                <Column align="right">{formatCurrency(h.value)}</Column>
-              </Row>
-            ))}
+        </Section>
+      ) : (
+        signals.map((s, i) => (
+          <Section
+            key={s.symbol}
+            style={{
+              border: `1px solid ${palette.cardBorder}`,
+              borderRadius: "10px",
+              padding: "16px",
+              marginBottom: i < signals.length - 1 ? "12px" : 0
+            }}
+          >
+            <Row>
+              <Column>
+                <Text style={{ color: palette.heading, fontSize: "16px", fontWeight: 700, margin: 0 }}>{s.symbol}</Text>
+              </Column>
+              <Column align="right">
+                <Text
+                  style={{
+                    display: "inline-block",
+                    color: confidenceColor(s.confidence),
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    margin: 0
+                  }}
+                >
+                  {s.confidence}% confidence
+                </Text>
+              </Column>
+            </Row>
+            <Text style={{ color: palette.body, fontSize: "13px", margin: "8px 0 14px", lineHeight: "1.5" }}>
+              {s.thesis}
+            </Text>
+            <Row>
+              <StatBlock label="Entry" value={s.entryPrice ? formatCurrency(s.entryPrice) : "n/a"} />
+              <StatBlock
+                label="Stop Loss"
+                value={s.stopLoss !== undefined ? `${s.stopLoss}%` : "n/a"}
+                valueColor={palette.negative}
+              />
+              <StatBlock
+                label="Take Profit"
+                value={s.takeProfit !== undefined ? `${s.takeProfit}%` : "n/a"}
+                valueColor={palette.positive}
+              />
+            </Row>
+            <Text style={{ color: palette.muted, fontSize: "11px", margin: "12px 0 0" }}>
+              Model: {s.source.toUpperCase()}
+            </Text>
           </Section>
-          <Section>
-            <Heading as="h3" style={{ color: "#e2e8f0", fontSize: "18px" }}>
-              Swing Signals (24-72h)
-            </Heading>
-            {signals.map((s) => (
-              <Row key={s.symbol} style={{ borderBottom: "1px solid #1f2937", padding: "8px 0" }}>
-                <Column>
-                  <Text style={{ color: "#22d3ee", fontWeight: 700 }}>{s.symbol}</Text>
-                </Column>
-                <Column>
-                  <Text style={{ color: "#cbd5e1" }}>{s.thesis}</Text>
-                  <Text style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Confidence {s.confidence}% · SL {s.stopLoss ?? "n/a"}% · TP{" "}
-                    {s.takeProfit ?? "n/a"}% · {s.source.toUpperCase()}
-                  </Text>
-                </Column>
-              </Row>
-            ))}
-          </Section>
-          <Text style={{ color: "#94a3b8", marginTop: "24px" }}>
-            Powered by OpenAI with DeepSeek fallback - remain in control, self-hosted.
-          </Text>
-        </Container>
-      </Body>
-    </Html>
+        ))
+      )}
+    </EmailShell>
   );
 }
 
@@ -124,51 +250,72 @@ interface ListingAlertProps {
 export function ListingAlertEmail({ userName, listing, signal, suggestedBuyUsd }: ListingAlertProps) {
   const meetsBar = signal && signal.confidence >= MIN_LISTING_CONFIDENCE;
   return (
-    <Html>
-      <Head />
-      <Preview>New Binance listing: {listing.pair}</Preview>
-      <Body style={{ fontFamily: "Inter, Arial, sans-serif", background: "#0b1223", color: "#e2e8f0" }}>
-        <Container style={{ padding: "32px", background: "#0f172a", borderRadius: "18px" }}>
-          <Heading style={{ color: "#22d3ee", marginBottom: "12px" }}>
-            New Binance listing: {listing.pair}
+    <EmailShell preview={`New Binance listing: ${listing.pair} -- trading opens soon`}>
+      <Row>
+        <Column>
+          <Text style={{ color: palette.brand, fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 6px" }}>
+            New listing detected
+          </Text>
+          <Heading style={{ color: palette.heading, fontSize: "22px", margin: "0 0 4px" }}>
+            {listing.pair}
           </Heading>
-          <Text style={{ color: "#cbd5e1", marginBottom: "8px" }}>
-            Hi {userName ?? "trader"}, Binance just announced this -- trading opens{" "}
-            {listing.goLiveAt ? listing.goLiveAt.toUTCString() : "soon"}.
-          </Text>
-          <Text style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "24px" }}>
-            <a href={listing.url} style={{ color: "#22d3ee" }}>{listing.title}</a>
-          </Text>
-          <Section style={{ marginBottom: "24px" }}>
-            <Heading as="h3" style={{ color: "#e2e8f0", fontSize: "18px" }}>
-              AI read
-            </Heading>
-            {meetsBar && signal ? (
-              <>
-                <Text style={{ color: "#cbd5e1" }}>{signal.thesis}</Text>
-                <Text style={{ color: "#94a3b8", fontSize: "12px" }}>
-                  Confidence {signal.confidence}% · SL {signal.stopLossPct}% · TP {signal.takeProfitPct}%
-                  {suggestedBuyUsd ? ` · Suggested size ${formatCurrency(suggestedBuyUsd)}` : ""} ·{" "}
-                  {signal.source.toUpperCase()}
+        </Column>
+      </Row>
+      <Text style={{ color: palette.body, fontSize: "14px", margin: "0 0 6px" }}>
+        Hi {userName ?? "trader"}, Binance just announced this. Trading opens{" "}
+        <strong style={{ color: palette.heading }}>
+          {listing.goLiveAt ? listing.goLiveAt.toUTCString() : "soon"}
+        </strong>
+        .
+      </Text>
+      <Text style={{ margin: "0 0 24px" }}>
+        <Link href={listing.url} style={{ color: palette.muted, fontSize: "12px", textDecoration: "underline" }}>
+          {listing.title}
+        </Link>
+      </Text>
+
+      <Text style={{ color: palette.muted, fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 10px" }}>
+        AI Read
+      </Text>
+      <Section style={{ border: `1px solid ${palette.cardBorder}`, borderRadius: "10px", padding: "16px" }}>
+        {meetsBar && signal ? (
+          <>
+            <Row>
+              <Column>
+                <Text
+                  style={{ display: "inline-block", color: confidenceColor(signal.confidence), fontSize: "12px", fontWeight: 700, margin: 0 }}
+                >
+                  {signal.confidence}% confidence
                 </Text>
-              </>
-            ) : (
-              <Text style={{ color: "#94a3b8" }}>
-                {signal
-                  ? `AI confidence (${signal.confidence}%) didn't clear our bar for a recommendation -- ${signal.thesis}`
-                  : "AI analysis wasn't available for this listing."}{" "}
-                No suggested position; this is announcement-only. There is no price history for a
-                brand-new listing, and new listings are extremely volatile in their first hours --
-                trade at your own risk if you choose to.
-              </Text>
-            )}
-          </Section>
-          <Text style={{ color: "#94a3b8", marginTop: "24px" }}>
-            Event-triggered alert, not part of your daily digest. Turn off in Settings if unwanted.
+              </Column>
+            </Row>
+            <Text style={{ color: palette.body, fontSize: "13px", margin: "8px 0 14px", lineHeight: "1.5" }}>
+              {signal.thesis}
+            </Text>
+            <Row>
+              <StatBlock label="Suggested Size" value={suggestedBuyUsd ? formatCurrency(suggestedBuyUsd) : "n/a"} />
+              <StatBlock label="Stop Loss" value={`${signal.stopLossPct}%`} valueColor={palette.negative} />
+              <StatBlock label="Take Profit" value={`${signal.takeProfitPct}%`} valueColor={palette.positive} />
+            </Row>
+            <Text style={{ color: palette.muted, fontSize: "11px", margin: "12px 0 0" }}>
+              Model: {signal.source.toUpperCase()}
+            </Text>
+          </>
+        ) : (
+          <Text style={{ color: palette.body, fontSize: "13px", margin: 0, lineHeight: "1.5" }}>
+            {signal
+              ? `AI confidence (${signal.confidence}%) didn't clear our bar for a recommendation -- ${signal.thesis}`
+              : "AI analysis wasn't available for this listing."}{" "}
+            No suggested position -- this is announcement-only. There is no price history for a
+            brand-new listing, and new listings are extremely volatile in their first hours. Trade
+            at your own risk if you choose to.
           </Text>
-        </Container>
-      </Body>
-    </Html>
+        )}
+      </Section>
+      <Text style={{ color: palette.muted, fontSize: "12px", margin: "20px 0 0" }}>
+        Event-triggered alert, separate from your daily digest.
+      </Text>
+    </EmailShell>
   );
 }
 

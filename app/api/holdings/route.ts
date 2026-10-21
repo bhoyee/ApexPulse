@@ -44,17 +44,48 @@ export async function POST(req: Request) {
   const currency = holdingMarket ? MARKET_CURRENCY[holdingMarket] : undefined;
   const fxRate = currency ? await getUsdRate(currency) : 1;
   const avgBuyPriceUsd = avgNum * fxRate;
+  const symbol = asset.toUpperCase();
+  const resolvedAssetClass = isStock ? "STOCK" : "CRYPTO";
+  const resolvedMarket = isStock ? market || "US" : null;
+  const resolvedSource = isStock ? source || "manual" : "binance";
+
+  // Adding to a position you already hold (same asset/market/source) should
+  // top it up, not create a second row -- the asset table is one row per
+  // position; every individual buy still gets its own entry in trade
+  // history separately. Cost basis is recombined as a quantity-weighted
+  // average so PnL reflects the blended price, not just the latest buy.
+  const existing = await prisma.holding.findFirst({
+    where: {
+      userId: session.user.id,
+      asset: symbol,
+      assetClass: resolvedAssetClass,
+      market: resolvedMarket,
+      source: resolvedSource
+    }
+  });
+
+  if (existing) {
+    const oldQty = Number(existing.amount);
+    const oldAvg = Number(existing.avgBuyPrice);
+    const newQty = oldQty + amountNum;
+    const newAvg = newQty > 0 ? (oldQty * oldAvg + amountNum * avgBuyPriceUsd) / newQty : avgBuyPriceUsd;
+    const updated = await prisma.holding.update({
+      where: { id: existing.id },
+      data: { amount: newQty, avgBuyPrice: newAvg }
+    });
+    return NextResponse.json(updated, { status: 200 });
+  }
 
   const holding = await prisma.holding.create({
     data: {
-      asset: asset.toUpperCase(),
+      asset: symbol,
       amount: amountNum,
       avgBuyPrice: avgBuyPriceUsd,
       tags,
       userId: session.user.id,
-      assetClass: isStock ? "STOCK" : "CRYPTO",
-      market: isStock ? market || "US" : null,
-      source: isStock ? source || "manual" : "binance",
+      assetClass: resolvedAssetClass,
+      market: resolvedMarket,
+      source: resolvedSource,
       ...(createdAt ? { createdAt } : {})
     }
   });

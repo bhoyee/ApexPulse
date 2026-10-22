@@ -253,24 +253,96 @@ async function fetchLiquidUsdtTickers(): Promise<MarketCandidate[]> {
     .filter((t) => Number.isFinite(t.price) && t.price > 0 && t.quoteVolume > 0);
 }
 
-// Momentum pool: biggest 24h gainers by liquidity.
-export async function getTopUsdtMarkets(limit = 30): Promise<MarketCandidate[]> {
-  const liquid = await fetchLiquidUsdtTickers();
-  return liquid.sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, limit);
+// A single day's % change can't tell "just turned up, still early" apart
+// from "day 5 of a pump, probably exhausted" -- both can show the exact
+// same 24h number. Ranking candidates by "biggest gainer today" alone is
+// structurally biased toward picks that have already run, which is
+// chasing, not catching a trend early. This pulls a short daily-close
+// history (free, same Binance API, no extra key) to tell those apart: how
+// many consecutive days has the price been moving the same direction.
+async function getDailyCloses(symbol: string, days = 12): Promise<number[]> {
+  try {
+    const res = await fetch(
+      `${BINANCE_API}/api/v3/klines?symbol=${symbol}USDT&interval=1d&limit=${days}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) return [];
+    const raw = (await res.json()) as unknown[][];
+    return raw.map((k) => Number(k[4])); // close price is index 4
+  } catch {
+    return [];
+  }
 }
 
-// Reversal pool: biggest 24h decliners that still look liquid enough to
-// trade AND show some evidence of stabilizing -- price already bounced a
-// couple percent off its 24h low, not still sitting at (or making) new
-// lows. "Near the low" alone just means "still falling"; requiring a bounce
-// is a cheap, real signal computable from the same ticker data rather than
-// a guess, without needing a separate klines/candle fetch.
+interface Freshness {
+  consecutiveDays: number;
+  /** The current move only started in the last 1-2 days -- not yet a
+   * multi-day run, so there's still room before it's exhausted. */
+  isFreshMove: boolean;
+}
+
+function classifyFreshness(closes: number[], direction: "up" | "down"): Freshness {
+  if (closes.length < 3) return { consecutiveDays: 0, isFreshMove: true };
+  let streak = 0;
+  for (let i = closes.length - 1; i > 0; i--) {
+    const moved = direction === "up" ? closes[i] > closes[i - 1] : closes[i] < closes[i - 1];
+    if (!moved) break;
+    streak++;
+  }
+  return { consecutiveDays: streak, isFreshMove: streak <= 2 };
+}
+
+// Momentum pool: coins that just turned up, not ones that have already run
+// for several days. Shortlisted by liquidity+direction first (to bound how
+// many klines calls this makes), then only the freshest moves survive --
+// sorted so the newest turns (fewest consecutive up-days) rank first.
+export async function getTopUsdtMarkets(limit = 30): Promise<MarketCandidate[]> {
+  const liquid = await fetchLiquidUsdtTickers();
+  const shortlist = liquid
+    .filter((t) => t.change24h > 0)
+    .sort((a, b) => b.quoteVolume - a.quoteVolume)
+    .slice(0, 60);
+
+  const withFreshness = await Promise.all(
+    shortlist.map(async (c) => ({
+      ...c,
+      freshness: classifyFreshness(await getDailyCloses(c.symbol), "up")
+    }))
+  );
+
+  return withFreshness
+    .filter((c) => c.freshness.isFreshMove)
+    .sort(
+      (a, b) => a.freshness.consecutiveDays - b.freshness.consecutiveDays || b.quoteVolume - a.quoteVolume
+    )
+    .slice(0, limit)
+    .map(({ freshness, ...c }) => c);
+}
+
+// Reversal pool: biggest 24h decliners that already show a real bounce off
+// the low (price > 1.5% above the 24h low -- "near the low" alone just
+// means "still falling"), AND where that bounce itself is still fresh (not
+// already a multi-day recovery run) -- otherwise this has the exact same
+// chasing problem momentum does, just one step later in the cycle.
 export async function getTopLoserMarkets(limit = 30): Promise<MarketCandidate[]> {
   const liquid = await fetchLiquidUsdtTickers();
-  return liquid
+  const shortlist = liquid
     .filter((t) => t.change24h < 0 && t.low > 0 && t.price > t.low * 1.015)
     .sort((a, b) => a.change24h - b.change24h)
-    .slice(0, limit);
+    .slice(0, 60);
+
+  const withFreshness = await Promise.all(
+    shortlist.map(async (c) => ({
+      ...c,
+      freshness: classifyFreshness(await getDailyCloses(c.symbol), "up")
+    }))
+  );
+
+  return withFreshness
+    .filter((c) => c.freshness.isFreshMove)
+    .sort((a, b) => a.freshness.consecutiveDays - b.freshness.consecutiveDays || a.change24h - b.change24h)
+    .slice(0, limit)
+    .map(({ freshness, ...c }) => c);
 }
 
 // Pulls current stats for a specific set of symbols rather than ranking the

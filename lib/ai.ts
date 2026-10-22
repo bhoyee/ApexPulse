@@ -139,6 +139,8 @@ ${(["momentum", "reversal", "recent_listing"] as SignalPool[])
   .filter(Boolean)
   .join("\n\n")}
 
+Every MOMENTUM and REVERSAL candidate below has already been pre-screened to only include moves that started in the last 1-2 days -- none of them are already several days into the run. You do not need to re-check that; it's a hard filter applied before this list was built, specifically so a pick is never "the biggest gainer today" that's secretly on day 5 of a pump with no edge left. Mention in the thesis that the move looks early, not exhausted.
+
 Due-diligence checklist by pool -- use ONLY the data given, run the matching checklist for that candidate's pool:
 
 MOMENTUM: (1) is change24h clearly positive with real follow-through, not a single volume spike? (2) does 24h volume support entering/exiting without excessive slippage? (3) is price meaningfully below its 24h high (room to run), not already stretched at the top? (4) risk/reward >= 1.5x.
